@@ -13,8 +13,6 @@ VALUE rb_streamly_get(int argc, VALUE * argv, VALUE klass) {
 
     curl = curl_easy_init();
     if(curl) {
-
-        body_buffer = rb_str_buf_new(32768);
         curl_easy_setopt(curl, CURLOPT_URL, "http://search.twitter.com/search.json?q=github");
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, (curl_write_callback)&default_data_handler);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)body_buffer);
@@ -25,7 +23,18 @@ VALUE rb_streamly_get(int argc, VALUE * argv, VALUE klass) {
         curl_easy_cleanup(curl);
     }
 
-    // return body_buffer;
+    return Qnil;
+}
+
+VALUE rb_streamly_post(int argc, VALUE * argv, VALUE klass) {
+    return Qnil;
+}
+
+VALUE rb_streamly_put(int argc, VALUE * argv, VALUE klass) {
+    return Qnil;
+}
+
+VALUE rb_streamly_delete(int argc, VALUE * argv, VALUE klass) {
     return Qnil;
 }
 
@@ -34,4 +43,7 @@ void Init_streamly_ext() {
     mStreamly = rb_define_module("Streamly");
 
     rb_define_module_function(mStreamly, "get", rb_streamly_get, -1);
+    rb_define_module_function(mStreamly, "post", rb_streamly_post, -1);
+    rb_define_module_function(mStreamly, "put", rb_streamly_put, -1);
+    rb_define_module_function(mStreamly, "delete", rb_streamly_delete, -1);
 }
