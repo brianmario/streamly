@@ -1,14 +1,20 @@
 #include "streamly.h"
 
-static size_t header_handler(char * stream, size_t size, size_t nmemb, VALUE out) {
-    rb_str_buf_cat(out, stream, size * nmemb);
-    // rb_funcall(callback, rb_intern("call"), 2, rb_str_new2("headers"), rb_str_new(stream, size * nmemb));
+static size_t header_handler(char * stream, size_t size, size_t nmemb, VALUE handler) {
+    if(TYPE(handler) == T_STRING) {
+        rb_str_buf_cat(handler, stream, size * nmemb);
+    } else {
+        rb_funcall(handler, rb_intern("call"), 1, rb_str_new(stream, size * nmemb));
+    }
     return size * nmemb;
 }
 
-static size_t data_handler(char * stream, size_t size, size_t nmemb, VALUE out) {
-    rb_str_buf_cat(out, stream, size * nmemb);
-    // rb_funcall(callback, rb_intern("call"), 2, rb_str_new2("body"), rb_str_new(stream, size * nmemb));
+static size_t data_handler(char * stream, size_t size, size_t nmemb, VALUE handler) {
+    if(TYPE(handler) == T_STRING) {
+        rb_str_buf_cat(handler, stream, size * nmemb);
+    } else {
+        rb_funcall(handler, rb_intern("call"), 1, rb_str_new(stream, size * nmemb));
+    }
     return size * nmemb;
 }
 
@@ -49,14 +55,15 @@ VALUE rb_streamly_head(int argc, VALUE * argv, VALUE klass) {
     CURL *curl;
     CURLcode res;
     char error_buf[CURL_ERROR_SIZE];
-    VALUE url = Qnil, headers = Qnil, header_buffer = Qnil, blk = Qnil;
+    VALUE handler = Qnil, url = Qnil, headers = Qnil, blk = Qnil;
 
     rb_scan_args(argc, argv, "11&", &url, &headers, &blk);
     
-    // if (blk == Qnil) {
-    //     // TODO: raise exception
-    //     return Qnil;
-    // }
+    if (blk != Qnil) {
+        handler = blk;
+    } else {
+        handler = rb_str_new2("");
+    }
     
     curl = curl_easy_init();
     if (curl) {
@@ -64,10 +71,9 @@ VALUE rb_streamly_head(int argc, VALUE * argv, VALUE klass) {
         curl_easy_setopt(curl, CURLOPT_URL, RSTRING_PTR(url));
         
         // Header handling
-        header_buffer = rb_str_new2("");
         curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, &header_handler);
-        curl_easy_setopt(curl, CURLOPT_HEADERDATA, header_buffer);
-        
+        curl_easy_setopt(curl, CURLOPT_HEADERDATA, handler);
+
         curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, error_buf);
 
         res = curl_easy_perform(curl);
@@ -78,8 +84,11 @@ VALUE rb_streamly_head(int argc, VALUE * argv, VALUE klass) {
         /* always cleanup */
         curl_easy_cleanup(curl);
     }
-
-    return header_buffer;
+    
+    if (TYPE(handler) == T_STRING) {
+        return handler;
+    }
+    return Qnil;
 }
 
 // get(url, headers = {})
@@ -87,29 +96,23 @@ VALUE rb_streamly_get(int argc, VALUE * argv, VALUE klass) {
     CURL *curl;
     CURLcode res;
     char error_buf[CURL_ERROR_SIZE];
-    VALUE body_buffer = Qnil, url = Qnil, headers = Qnil, header_buffer = Qnil, blk = Qnil;
+    VALUE handler = Qnil, url = Qnil, headers = Qnil, blk = Qnil;
 
     rb_scan_args(argc, argv, "11&", &url, &headers, &blk);
     
-    // if (blk == Qnil) {
-    //     // TODO: raise exception
-    //     return Qnil;
-    // }
+    if (blk != Qnil) {
+        handler = blk;
+    } else {
+        handler = rb_str_new2("");
+    }
     
     curl = curl_easy_init();
     if (curl) {
-        body_buffer = rb_str_new2("");
         curl_easy_setopt(curl, CURLOPT_URL, RSTRING_PTR(url));
         
-        // Header handling
-        header_buffer = rb_str_new2("");
-        curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, &header_handler);
-        curl_easy_setopt(curl, CURLOPT_HEADERDATA, header_buffer);
-        
         // Body handling
-        body_buffer = rb_str_new2("");
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, (curl_write_callback)&data_handler);
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, body_buffer);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, handler);
 
         curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, error_buf);
 
@@ -121,8 +124,11 @@ VALUE rb_streamly_get(int argc, VALUE * argv, VALUE klass) {
         /* always cleanup */
         curl_easy_cleanup(curl);
     }
-
-    return body_buffer;
+    
+    if (TYPE(handler) == T_STRING) {
+        return handler;
+    }
+    return Qnil;
 }
 
 // post(url, payload, headers = {})
@@ -140,30 +146,24 @@ VALUE rb_streamly_delete(int argc, VALUE * argv, VALUE klass) {
     CURL *curl;
     CURLcode res;
     char error_buf[CURL_ERROR_SIZE];
-    VALUE body_buffer = Qnil, url = Qnil, headers = Qnil, header_buffer = Qnil, blk = Qnil;
+    VALUE handler = Qnil, url = Qnil, headers = Qnil, blk = Qnil;
 
     rb_scan_args(argc, argv, "11&", &url, &headers, &blk);
     
-    // if (blk == Qnil) {
-    //     // TODO: raise exception
-    //     return Qnil;
-    // }
+    if (blk != Qnil) {
+        handler = blk;
+    } else {
+        handler = rb_str_new2("");
+    }
     
     curl = curl_easy_init();
     if (curl) {
-        body_buffer = rb_str_new2("");
         curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "DELETE");
         curl_easy_setopt(curl, CURLOPT_URL, RSTRING_PTR(url));
         
-        // Header handling
-        header_buffer = rb_str_new2("");
-        curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, &header_handler);
-        curl_easy_setopt(curl, CURLOPT_HEADERDATA, header_buffer);
-        
         // Body handling
-        body_buffer = rb_str_new2("");
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, (curl_write_callback)&data_handler);
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, body_buffer);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, handler);
 
         curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, error_buf);
 
@@ -175,8 +175,11 @@ VALUE rb_streamly_delete(int argc, VALUE * argv, VALUE klass) {
         /* always cleanup */
         curl_easy_cleanup(curl);
     }
-
-    return body_buffer;
+    
+    if (TYPE(handler) == T_STRING) {
+        return handler;
+    }
+    return Qnil;
 }
 
 // Ruby Extension initializer
