@@ -109,6 +109,7 @@ VALUE rb_streamly_get(int argc, VALUE * argv, VALUE klass) {
     curl = curl_easy_init();
     if (curl) {
         curl_easy_setopt(curl, CURLOPT_URL, RSTRING_PTR(url));
+        curl_easy_setopt(curl, CURLOPT_ENCODING, "identity,deflate,gzip");
         
         // Body handling
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, (curl_write_callback)&data_handler);
@@ -133,11 +134,102 @@ VALUE rb_streamly_get(int argc, VALUE * argv, VALUE klass) {
 
 // post(url, payload, headers = {})
 VALUE rb_streamly_post(int argc, VALUE * argv, VALUE klass) {
+    CURL *curl;
+    CURLcode res;
+    char error_buf[CURL_ERROR_SIZE];
+    VALUE handler = Qnil, url = Qnil, payload = Qnil, headers = Qnil, blk = Qnil;
+
+    rb_scan_args(argc, argv, "21&", &url, &payload, &headers, &blk);
+    
+    if (blk != Qnil) {
+        handler = blk;
+    } else {
+        handler = rb_str_new2("");
+    }
+    
+    curl = curl_easy_init();
+    if (curl) {
+        curl_easy_setopt(curl, CURLOPT_URL, RSTRING_PTR(url));
+        curl_easy_setopt(curl, CURLOPT_ENCODING, "identity,deflate,gzip");
+
+        curl_easy_setopt(curl, CURLOPT_POST, 1);
+        
+        // TODO: support "Transfer-Encoding: chunked" for request body
+        // TODO: support CURLOPT_HTTPPOST (multipart/formdata)
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, RSTRING_PTR(payload));
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, RSTRING_LEN(payload));
+        
+        // Body handling
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, (curl_write_callback)&data_handler);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, handler);
+
+        curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, error_buf);
+
+        res = curl_easy_perform(curl);
+        if (CURLE_OK != res) {
+            rb_raise(select_error(res), error_buf);
+        }
+
+        /* always cleanup */
+        curl_easy_cleanup(curl);
+    }
+    
+    if (TYPE(handler) == T_STRING) {
+        return handler;
+    }
     return Qnil;
 }
 
 // put(url, payload, headers = {})
 VALUE rb_streamly_put(int argc, VALUE * argv, VALUE klass) {
+    CURL *curl;
+    CURLcode res;
+    char error_buf[CURL_ERROR_SIZE];
+    VALUE handler = Qnil, url = Qnil, payload = Qnil, headers = Qnil, blk = Qnil;
+
+    rb_scan_args(argc, argv, "21&", &url, &payload, &headers, &blk);
+    
+    if (blk != Qnil) {
+        handler = blk;
+    } else {
+        handler = rb_str_new2("");
+    }
+    
+    curl = curl_easy_init();
+    if (curl) {
+        curl_easy_setopt(curl, CURLOPT_URL, RSTRING_PTR(url));
+        curl_easy_setopt(curl, CURLOPT_ENCODING, "identity,deflate,gzip");
+        
+        // VALUE data = rb_iv_get(request, "@upload_data");
+        // state->upload_buf = StringValuePtr(data);
+        // int len = RSTRING_LEN(data);
+        
+        // deprecated, apparently
+        // curl_easy_setopt(curl, CURLOPT_PUT, 1);
+        
+        curl_easy_setopt(curl, CURLOPT_UPLOAD, 1);
+        // curl_easy_setopt(curl, CURLOPT_READFUNCTION, &session_read_handler);
+        // curl_easy_setopt(curl, CURLOPT_READDATA, &state->upload_buf);
+        // curl_easy_setopt(curl, CURLOPT_INFILESIZE, len);
+        
+        // Body handling
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, (curl_write_callback)&data_handler);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, handler);
+
+        curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, error_buf);
+
+        res = curl_easy_perform(curl);
+        if (CURLE_OK != res) {
+            rb_raise(select_error(res), error_buf);
+        }
+
+        /* always cleanup */
+        curl_easy_cleanup(curl);
+    }
+    
+    if (TYPE(handler) == T_STRING) {
+        return handler;
+    }
     return Qnil;
 }
 
@@ -160,6 +252,7 @@ VALUE rb_streamly_delete(int argc, VALUE * argv, VALUE klass) {
     if (curl) {
         curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "DELETE");
         curl_easy_setopt(curl, CURLOPT_URL, RSTRING_PTR(url));
+        curl_easy_setopt(curl, CURLOPT_ENCODING, "identity,deflate,gzip");
         
         // Body handling
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, (curl_write_callback)&data_handler);
