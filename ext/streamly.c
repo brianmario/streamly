@@ -50,240 +50,372 @@ static VALUE select_error(CURLcode code) {
     return error;
 }
 
-// head(url, headers = {})
-VALUE rb_streamly_head(int argc, VALUE * argv, VALUE klass) {
-    CURL *curl;
-    CURLcode res;
-    char error_buf[CURL_ERROR_SIZE];
-    VALUE handler = Qnil, url = Qnil, headers = Qnil, blk = Qnil;
+static VALUE each_http_header(VALUE header, VALUE self) {
+    struct curl_instance *instance;
+    Data_Get_Struct(self, struct curl_instance, instance);
 
+    VALUE name = rb_obj_as_string(rb_ary_entry(header, 0));
+    VALUE value = rb_obj_as_string(rb_ary_entry(header, 1));
+
+    VALUE header_str = Qnil;
+    header_str = rb_str_plus(name, rb_str_new2(": "));
+    header_str = rb_str_plus(header_str, value);
+
+    instance->headers = curl_slist_append(instance->headers, RSTRING_PTR(header_str));
+    return Qnil;
+}
+
+void streamly_instance_free(struct curl_instance *curl) {
+    curl_easy_cleanup(curl->handle);
+    free(curl);
+}
+
+VALUE rb_streamly_new(VALUE klass) {
+    struct curl_instance* curl;
+    VALUE obj = Data_Make_Struct(klass, struct curl_instance, NULL, streamly_instance_free, curl);
+    rb_obj_call_init(obj, 0, 0);
+    return obj;
+}
+
+VALUE rb_streamly_init(VALUE self) {
+    struct curl_instance *instance;
+    Data_Get_Struct(self, struct curl_instance, instance);
+    instance->handle = curl_easy_init();
+    return self;
+}
+
+// head(url, headers = {})
+VALUE rb_streamly_head(int argc, VALUE * argv, VALUE self) {
+    CURLcode res;
+    struct curl_instance *instance;
+    GetInstance(self, instance);
+    VALUE handler = Qnil, url = Qnil, headers = Qnil, blk = Qnil;
+    
     rb_scan_args(argc, argv, "11&", &url, &headers, &blk);
     
+    // Set handler to the passed block, so we can pass chunks to it
+    // or just use a string so we can append the response to, and finally return it
     if (blk != Qnil) {
         handler = blk;
     } else {
         handler = rb_str_new2("");
     }
     
-    curl = curl_easy_init();
-    if (curl) {
-        curl_easy_setopt(curl, CURLOPT_NOBODY, 1);
-        curl_easy_setopt(curl, CURLOPT_URL, RSTRING_PTR(url));
+    if (instance->handle) {
+        curl_easy_setopt(instance->handle, CURLOPT_NOBODY, 1);
+        curl_easy_setopt(instance->handle, CURLOPT_URL, RSTRING_PTR(url));
         
         // Header handling
-        curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, &header_handler);
-        curl_easy_setopt(curl, CURLOPT_HEADERDATA, handler);
-
-        curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, error_buf);
-
-        res = curl_easy_perform(curl);
-        if (CURLE_OK != res) {
-            rb_raise(select_error(res), error_buf);
+        curl_easy_setopt(instance->handle, CURLOPT_HEADERFUNCTION, &header_handler);
+        curl_easy_setopt(instance->handle, CURLOPT_HEADERDATA, handler);
+        
+        if (!NIL_P(headers)) {
+            if (rb_type(headers) != T_HASH) {
+              rb_raise(rb_eArgError, "Headers must be passed in as a hash.");
+            }
+            
+            rb_iterate(rb_each, headers, each_http_header, self);
+            
+            curl_easy_setopt(instance->handle, CURLOPT_HTTPHEADER, instance->headers);
         }
-
-        /* always cleanup */
-        curl_easy_cleanup(curl);
-    }
-    
-    if (TYPE(handler) == T_STRING) {
-        return handler;
+        
+        curl_easy_setopt(instance->handle, CURLOPT_ERRORBUFFER, instance->error_buf);
+        
+        res = curl_easy_perform(instance->handle);
+        if (CURLE_OK != res) {
+            rb_raise(select_error(res), instance->error_buf);
+        }
+        
+        // always cleanup
+        if (!NIL_P(headers)) {
+            curl_slist_free_all(instance->headers);
+            instance->headers = NULL;
+        }
+        curl_easy_reset(instance->handle);
+        instance->upload_buf = NULL;
+        
+        if (TYPE(handler) == T_STRING) {
+            return handler;
+        }
     }
     return Qnil;
 }
 
 // get(url, headers = {})
-VALUE rb_streamly_get(int argc, VALUE * argv, VALUE klass) {
-    CURL *curl;
+VALUE rb_streamly_get(int argc, VALUE * argv, VALUE self) {
     CURLcode res;
-    char error_buf[CURL_ERROR_SIZE];
+    struct curl_instance *instance;
+    GetInstance(self, instance);
     VALUE handler = Qnil, url = Qnil, headers = Qnil, blk = Qnil;
-
+    
     rb_scan_args(argc, argv, "11&", &url, &headers, &blk);
     
+    // Set handler to the passed block, so we can pass chunks to it
+    // or just use a string so we can append the response to, and finally return it
     if (blk != Qnil) {
         handler = blk;
     } else {
         handler = rb_str_new2("");
     }
     
-    curl = curl_easy_init();
-    if (curl) {
-        curl_easy_setopt(curl, CURLOPT_URL, RSTRING_PTR(url));
-        curl_easy_setopt(curl, CURLOPT_ENCODING, "identity,deflate,gzip");
+    if (instance->handle) {
+        curl_easy_setopt(instance->handle, CURLOPT_ENCODING, "identity, deflate, gzip");
+        curl_easy_setopt(instance->handle, CURLOPT_URL, RSTRING_PTR(url));
+        
+        // TODO: add support to get these to the caller
+        // Header handling
+        // curl_easy_setopt(instance->handle, CURLOPT_HEADERFUNCTION, &header_handler);
+        // curl_easy_setopt(instance->handle, CURLOPT_HEADERDATA, handler);
         
         // Body handling
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, (curl_write_callback)&data_handler);
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, handler);
-
-        curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, error_buf);
-
-        res = curl_easy_perform(curl);
-        if (CURLE_OK != res) {
-            rb_raise(select_error(res), error_buf);
+        curl_easy_setopt(instance->handle, CURLOPT_WRITEFUNCTION, (curl_write_callback)&data_handler);
+        curl_easy_setopt(instance->handle, CURLOPT_WRITEDATA, handler);
+        
+        if (!NIL_P(headers)) {
+            if (rb_type(headers) != T_HASH) {
+              rb_raise(rb_eArgError, "Headers must be passed in as a hash.");
+            }
+            
+            rb_iterate(rb_each, headers, each_http_header, self);
+            
+            curl_easy_setopt(instance->handle, CURLOPT_HTTPHEADER, instance->headers);
         }
-
-        /* always cleanup */
-        curl_easy_cleanup(curl);
-    }
-    
-    if (TYPE(handler) == T_STRING) {
-        return handler;
+        
+        curl_easy_setopt(instance->handle, CURLOPT_ERRORBUFFER, instance->error_buf);
+        
+        res = curl_easy_perform(instance->handle);
+        if (CURLE_OK != res) {
+            rb_raise(select_error(res), instance->error_buf);
+        }
+        
+        // always cleanup
+        if (!NIL_P(headers)) {
+            curl_slist_free_all(instance->headers);
+            instance->headers = NULL;
+        }
+        curl_easy_reset(instance->handle);
+        instance->upload_buf = NULL;
+        
+        if (TYPE(handler) == T_STRING) {
+            return handler;
+        }
     }
     return Qnil;
 }
 
 // post(url, payload, headers = {})
-VALUE rb_streamly_post(int argc, VALUE * argv, VALUE klass) {
-    CURL *curl;
+VALUE rb_streamly_post(int argc, VALUE * argv, VALUE self) {
     CURLcode res;
-    char error_buf[CURL_ERROR_SIZE];
+    struct curl_instance *instance;
+    GetInstance(self, instance);
     VALUE handler = Qnil, url = Qnil, payload = Qnil, headers = Qnil, blk = Qnil;
-
+    
     rb_scan_args(argc, argv, "21&", &url, &payload, &headers, &blk);
     
+    // Set handler to the passed block, so we can pass chunks to it
+    // or just use a string so we can append the response to, and finally return it
     if (blk != Qnil) {
         handler = blk;
     } else {
         handler = rb_str_new2("");
     }
     
-    curl = curl_easy_init();
-    if (curl) {
-        curl_easy_setopt(curl, CURLOPT_URL, RSTRING_PTR(url));
-        curl_easy_setopt(curl, CURLOPT_ENCODING, "identity,deflate,gzip");
-
-        curl_easy_setopt(curl, CURLOPT_POST, 1);
+    if (instance->handle) {
+        curl_easy_setopt(instance->handle, CURLOPT_POST, 1);
+        curl_easy_setopt(instance->handle, CURLOPT_ENCODING, "identity, deflate, gzip");
+        curl_easy_setopt(instance->handle, CURLOPT_URL, RSTRING_PTR(url));
         
+        // TODO: add support to get these to the caller
+        // Header handling
+        // curl_easy_setopt(instance->handle, CURLOPT_HEADERFUNCTION, &header_handler);
+        // curl_easy_setopt(instance->handle, CURLOPT_HEADERDATA, handler);
+
         // TODO: support "Transfer-Encoding: chunked" for request body
         // TODO: support CURLOPT_HTTPPOST (multipart/formdata)
-        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, RSTRING_PTR(payload));
-        curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, RSTRING_LEN(payload));
+        curl_easy_setopt(instance->handle, CURLOPT_POSTFIELDS, RSTRING_PTR(payload));
+        curl_easy_setopt(instance->handle, CURLOPT_POSTFIELDSIZE, RSTRING_LEN(payload));
         
         // Body handling
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, (curl_write_callback)&data_handler);
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, handler);
-
-        curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, error_buf);
-
-        res = curl_easy_perform(curl);
-        if (CURLE_OK != res) {
-            rb_raise(select_error(res), error_buf);
+        curl_easy_setopt(instance->handle, CURLOPT_WRITEFUNCTION, (curl_write_callback)&data_handler);
+        curl_easy_setopt(instance->handle, CURLOPT_WRITEDATA, handler);
+        
+        if (!NIL_P(headers)) {
+            if (rb_type(headers) != T_HASH) {
+              rb_raise(rb_eArgError, "Headers must be passed in as a hash.");
+            }
+            
+            rb_iterate(rb_each, headers, each_http_header, self);
+            
+            curl_easy_setopt(instance->handle, CURLOPT_HTTPHEADER, instance->headers);
         }
-
-        /* always cleanup */
-        curl_easy_cleanup(curl);
-    }
-    
-    if (TYPE(handler) == T_STRING) {
-        return handler;
+        
+        curl_easy_setopt(instance->handle, CURLOPT_ERRORBUFFER, instance->error_buf);
+        
+        res = curl_easy_perform(instance->handle);
+        if (CURLE_OK != res) {
+            rb_raise(select_error(res), instance->error_buf);
+        }
+        
+        // always cleanup
+        if (!NIL_P(headers)) {
+            curl_slist_free_all(instance->headers);
+            instance->headers = NULL;
+        }
+        curl_easy_reset(instance->handle);
+        instance->upload_buf = NULL;
+        
+        if (TYPE(handler) == T_STRING) {
+            return handler;
+        }
     }
     return Qnil;
 }
 
 // put(url, payload, headers = {})
-VALUE rb_streamly_put(int argc, VALUE * argv, VALUE klass) {
-    CURL *curl;
+VALUE rb_streamly_put(int argc, VALUE * argv, VALUE self) {
     CURLcode res;
-    char error_buf[CURL_ERROR_SIZE];
+    struct curl_instance *instance;
+    GetInstance(self, instance);
     VALUE handler = Qnil, url = Qnil, payload = Qnil, headers = Qnil, blk = Qnil;
-
+    
     rb_scan_args(argc, argv, "21&", &url, &payload, &headers, &blk);
     
+    // Set handler to the passed block, so we can pass chunks to it
+    // or just use a string so we can append the response to, and finally return it
     if (blk != Qnil) {
         handler = blk;
     } else {
         handler = rb_str_new2("");
     }
     
-    curl = curl_easy_init();
-    if (curl) {
-        curl_easy_setopt(curl, CURLOPT_URL, RSTRING_PTR(url));
-        curl_easy_setopt(curl, CURLOPT_ENCODING, "identity,deflate,gzip");
+    if (instance->handle) {
+        curl_easy_setopt(instance->handle, CURLOPT_ENCODING, "identity, deflate, gzip");
+        curl_easy_setopt(instance->handle, CURLOPT_URL, RSTRING_PTR(url));
         
+        // TODO: add support to get these to the caller
+        // Header handling
+        // curl_easy_setopt(instance->handle, CURLOPT_HEADERFUNCTION, &header_handler);
+        // curl_easy_setopt(instance->handle, CURLOPT_HEADERDATA, handler);
+        
+        // Let libcurl know this is an HTTP PUT request
+        curl_easy_setopt(instance->handle, CURLOPT_UPLOAD, 1);
         // VALUE data = rb_iv_get(request, "@upload_data");
         // state->upload_buf = StringValuePtr(data);
         // int len = RSTRING_LEN(data);
-        
-        // deprecated, apparently
-        // curl_easy_setopt(curl, CURLOPT_PUT, 1);
-        
-        curl_easy_setopt(curl, CURLOPT_UPLOAD, 1);
-        // curl_easy_setopt(curl, CURLOPT_READFUNCTION, &session_read_handler);
-        // curl_easy_setopt(curl, CURLOPT_READDATA, &state->upload_buf);
-        // curl_easy_setopt(curl, CURLOPT_INFILESIZE, len);
+        // curl_easy_setopt(instance->handle, CURLOPT_READFUNCTION, &session_read_handler);
+        // curl_easy_setopt(instance->handle, CURLOPT_READDATA, &state->upload_buf);
+        // curl_easy_setopt(instance->handle, CURLOPT_INFILESIZE, len);
         
         // Body handling
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, (curl_write_callback)&data_handler);
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, handler);
-
-        curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, error_buf);
-
-        res = curl_easy_perform(curl);
-        if (CURLE_OK != res) {
-            rb_raise(select_error(res), error_buf);
+        curl_easy_setopt(instance->handle, CURLOPT_WRITEFUNCTION, (curl_write_callback)&data_handler);
+        curl_easy_setopt(instance->handle, CURLOPT_WRITEDATA, handler);
+        
+        if (!NIL_P(headers)) {
+            if (rb_type(headers) != T_HASH) {
+              rb_raise(rb_eArgError, "Headers must be passed in as a hash.");
+            }
+            
+            rb_iterate(rb_each, headers, each_http_header, self);
+            
+            curl_easy_setopt(instance->handle, CURLOPT_HTTPHEADER, instance->headers);
         }
-
-        /* always cleanup */
-        curl_easy_cleanup(curl);
-    }
-    
-    if (TYPE(handler) == T_STRING) {
-        return handler;
+        
+        curl_easy_setopt(instance->handle, CURLOPT_ERRORBUFFER, instance->error_buf);
+        
+        res = curl_easy_perform(instance->handle);
+        if (CURLE_OK != res) {
+            rb_raise(select_error(res), instance->error_buf);
+        }
+        
+        // always cleanup
+        if (!NIL_P(headers)) {
+            curl_slist_free_all(instance->headers);
+            instance->headers = NULL;
+        }
+        curl_easy_reset(instance->handle);
+        instance->upload_buf = NULL;
+        
+        if (TYPE(handler) == T_STRING) {
+            return handler;
+        }
     }
     return Qnil;
 }
 
 // delete(url, headers = {})
-VALUE rb_streamly_delete(int argc, VALUE * argv, VALUE klass) {
-    CURL *curl;
+VALUE rb_streamly_delete(int argc, VALUE * argv, VALUE self) {
     CURLcode res;
-    char error_buf[CURL_ERROR_SIZE];
+    struct curl_instance *instance;
+    GetInstance(self, instance);
     VALUE handler = Qnil, url = Qnil, headers = Qnil, blk = Qnil;
-
+    
     rb_scan_args(argc, argv, "11&", &url, &headers, &blk);
     
+    // Set handler to the passed block, so we can pass chunks to it
+    // or just use a string so we can append the response to, and finally return it
     if (blk != Qnil) {
         handler = blk;
     } else {
         handler = rb_str_new2("");
     }
     
-    curl = curl_easy_init();
-    if (curl) {
-        curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "DELETE");
-        curl_easy_setopt(curl, CURLOPT_URL, RSTRING_PTR(url));
-        curl_easy_setopt(curl, CURLOPT_ENCODING, "identity,deflate,gzip");
+    if (instance->handle) {
+        curl_easy_setopt(instance->handle, CURLOPT_CUSTOMREQUEST, "DELETE");
+        curl_easy_setopt(instance->handle, CURLOPT_ENCODING, "identity, deflate, gzip");
+        curl_easy_setopt(instance->handle, CURLOPT_URL, RSTRING_PTR(url));
+        
+        // TODO: add support to get these to the caller
+        // Header handling
+        // curl_easy_setopt(instance->handle, CURLOPT_HEADERFUNCTION, &header_handler);
+        // curl_easy_setopt(instance->handle, CURLOPT_HEADERDATA, handler);
         
         // Body handling
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, (curl_write_callback)&data_handler);
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, handler);
-
-        curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, error_buf);
-
-        res = curl_easy_perform(curl);
-        if (CURLE_OK != res) {
-            rb_raise(select_error(res), error_buf);
+        curl_easy_setopt(instance->handle, CURLOPT_WRITEFUNCTION, (curl_write_callback)&data_handler);
+        curl_easy_setopt(instance->handle, CURLOPT_WRITEDATA, handler);
+        
+        if (!NIL_P(headers)) {
+            if (rb_type(headers) != T_HASH) {
+              rb_raise(rb_eArgError, "Headers must be passed in as a hash.");
+            }
+            
+            rb_iterate(rb_each, headers, each_http_header, self);
+            
+            curl_easy_setopt(instance->handle, CURLOPT_HTTPHEADER, instance->headers);
         }
-
-        /* always cleanup */
-        curl_easy_cleanup(curl);
-    }
-    
-    if (TYPE(handler) == T_STRING) {
-        return handler;
+        
+        curl_easy_setopt(instance->handle, CURLOPT_ERRORBUFFER, instance->error_buf);
+        
+        res = curl_easy_perform(instance->handle);
+        if (CURLE_OK != res) {
+            rb_raise(select_error(res), instance->error_buf);
+        }
+        
+        // always cleanup
+        if (!NIL_P(headers)) {
+            curl_slist_free_all(instance->headers);
+            instance->headers = NULL;
+        }
+        curl_easy_reset(instance->handle);
+        instance->upload_buf = NULL;
+        
+        if (TYPE(handler) == T_STRING) {
+            return handler;
+        }
     }
     return Qnil;
 }
 
 // Ruby Extension initializer
 void Init_streamly_ext() {
-    mStreamly = rb_define_module("Streamly");
-
-    rb_define_module_function(mStreamly, "head", rb_streamly_head, -1);
-    rb_define_module_function(mStreamly, "get", rb_streamly_get, -1);
-    rb_define_module_function(mStreamly, "post", rb_streamly_post, -1);
-    rb_define_module_function(mStreamly, "put", rb_streamly_put, -1);
-    rb_define_module_function(mStreamly, "delete", rb_streamly_delete, -1);
+    mStreamly = rb_define_class("Streamly", rb_cObject);
+    
+    rb_define_singleton_method(mStreamly, "new", rb_streamly_new, 0);
+    rb_define_method(mStreamly, "initialize", rb_streamly_init, 0);
+    rb_define_method(mStreamly, "head", rb_streamly_head, -1);
+    rb_define_method(mStreamly, "get", rb_streamly_get, -1);
+    rb_define_method(mStreamly, "post", rb_streamly_post, -1);
+    rb_define_method(mStreamly, "put", rb_streamly_put, -1);
+    rb_define_method(mStreamly, "delete", rb_streamly_delete, -1);
     
     eStreamlyError = rb_define_class_under(mStreamly, "Error", rb_eStandardError);
     eUnsupportedProtocol = rb_define_class_under(mStreamly, "UnsupportedProtocol", rb_eStandardError);
