@@ -2,6 +2,9 @@
 require 'mkmf'
 require 'rbconfig'
 
+$CFLAGS << ' -DHAVE_RBTRAP' if have_var('rb_trap_immediate', ['ruby.h', 'rubysig.h'])
+# add_define 'HAVE_RBTRAP' if have_var('rb_trap_immediate', ['ruby.h', 'rubysig.h'])
+
 # Borrowed from taf2-curb
 dir_config('curl')
 if find_executable('curl-config')

@@ -6,6 +6,16 @@ VALUE eConnectionFailed, ePartialFileError, eTimeoutError, eTooManyRedirects;
 
 #define GetInstance(obj, sval) (sval = (struct curl_instance*)DATA_PTR(obj));
 
+#ifdef HAVE_RBTRAP
+    #include <rubysig.h>
+#else
+    void rb_enable_interrupt(void);
+    void rb_disable_interrupt(void);
+
+    #define TRAP_BEG rb_enable_interrupt();
+    #define TRAP_END do { rb_disable_interrupt(); rb_thread_check_ints(); } while(0);
+#endif
+
 struct curl_instance {
     CURL* handle;
     char* upload_buf;

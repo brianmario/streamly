@@ -1,20 +1,24 @@
 #include "streamly.h"
 
 static size_t header_handler(char * stream, size_t size, size_t nmemb, VALUE handler) {
+    TRAP_BEG;
     if(TYPE(handler) == T_STRING) {
         rb_str_buf_cat(handler, stream, size * nmemb);
     } else {
         rb_funcall(handler, rb_intern("call"), 1, rb_str_new(stream, size * nmemb));
     }
+    TRAP_END;
     return size * nmemb;
 }
 
 static size_t data_handler(char * stream, size_t size, size_t nmemb, VALUE handler) {
+    TRAP_BEG;
     if(TYPE(handler) == T_STRING) {
         rb_str_buf_cat(handler, stream, size * nmemb);
     } else {
         rb_funcall(handler, rb_intern("call"), 1, rb_str_new(stream, size * nmemb));
     }
+    TRAP_END;
     return size * nmemb;
 }
 
@@ -125,6 +129,7 @@ VALUE rb_streamly_head(int argc, VALUE * argv, VALUE self) {
         curl_easy_setopt(instance->handle, CURLOPT_ERRORBUFFER, instance->error_buf);
         
         res = curl_easy_perform(instance->handle);
+        
         if (CURLE_OK != res) {
             rb_raise(select_error(res), instance->error_buf);
         }
@@ -191,6 +196,7 @@ VALUE rb_streamly_get(int argc, VALUE * argv, VALUE self) {
         curl_easy_setopt(instance->handle, CURLOPT_ERRORBUFFER, instance->error_buf);
         
         res = curl_easy_perform(instance->handle);
+
         if (CURLE_OK != res) {
             rb_raise(select_error(res), instance->error_buf);
         }
@@ -262,6 +268,7 @@ VALUE rb_streamly_post(int argc, VALUE * argv, VALUE self) {
         curl_easy_setopt(instance->handle, CURLOPT_ERRORBUFFER, instance->error_buf);
         
         res = curl_easy_perform(instance->handle);
+        
         if (CURLE_OK != res) {
             rb_raise(select_error(res), instance->error_buf);
         }
@@ -336,6 +343,7 @@ VALUE rb_streamly_put(int argc, VALUE * argv, VALUE self) {
         curl_easy_setopt(instance->handle, CURLOPT_ERRORBUFFER, instance->error_buf);
         
         res = curl_easy_perform(instance->handle);
+        
         if (CURLE_OK != res) {
             rb_raise(select_error(res), instance->error_buf);
         }
@@ -402,6 +410,7 @@ VALUE rb_streamly_delete(int argc, VALUE * argv, VALUE self) {
         curl_easy_setopt(instance->handle, CURLOPT_ERRORBUFFER, instance->error_buf);
         
         res = curl_easy_perform(instance->handle);
+        
         if (CURLE_OK != res) {
             rb_raise(select_error(res), instance->error_buf);
         }
