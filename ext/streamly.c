@@ -102,6 +102,9 @@ VALUE rb_streamly_head(int argc, VALUE * argv, VALUE self) {
     }
     
     if (instance->handle) {
+        curl_easy_setopt(instance->handle, CURLOPT_FOLLOWLOCATION, 1);
+        curl_easy_setopt(instance->handle, CURLOPT_MAXREDIRS, 3);
+        
         curl_easy_setopt(instance->handle, CURLOPT_NOBODY, 1);
         curl_easy_setopt(instance->handle, CURLOPT_URL, RSTRING_PTR(url));
         
@@ -159,6 +162,9 @@ VALUE rb_streamly_get(int argc, VALUE * argv, VALUE self) {
     }
     
     if (instance->handle) {
+        curl_easy_setopt(instance->handle, CURLOPT_FOLLOWLOCATION, 1);
+        curl_easy_setopt(instance->handle, CURLOPT_MAXREDIRS, 3);
+        
         curl_easy_setopt(instance->handle, CURLOPT_ENCODING, "identity, deflate, gzip");
         curl_easy_setopt(instance->handle, CURLOPT_URL, RSTRING_PTR(url));
         
@@ -221,6 +227,9 @@ VALUE rb_streamly_post(int argc, VALUE * argv, VALUE self) {
     }
     
     if (instance->handle) {
+        curl_easy_setopt(instance->handle, CURLOPT_FOLLOWLOCATION, 1);
+        curl_easy_setopt(instance->handle, CURLOPT_MAXREDIRS, 3);
+        
         curl_easy_setopt(instance->handle, CURLOPT_POST, 1);
         curl_easy_setopt(instance->handle, CURLOPT_ENCODING, "identity, deflate, gzip");
         curl_easy_setopt(instance->handle, CURLOPT_URL, RSTRING_PTR(url));
@@ -289,6 +298,9 @@ VALUE rb_streamly_put(int argc, VALUE * argv, VALUE self) {
     }
     
     if (instance->handle) {
+        curl_easy_setopt(instance->handle, CURLOPT_FOLLOWLOCATION, 1);
+        curl_easy_setopt(instance->handle, CURLOPT_MAXREDIRS, 3);
+        
         curl_easy_setopt(instance->handle, CURLOPT_ENCODING, "identity, deflate, gzip");
         curl_easy_setopt(instance->handle, CURLOPT_URL, RSTRING_PTR(url));
         
@@ -360,6 +372,9 @@ VALUE rb_streamly_delete(int argc, VALUE * argv, VALUE self) {
     }
     
     if (instance->handle) {
+        curl_easy_setopt(instance->handle, CURLOPT_FOLLOWLOCATION, 1);
+        curl_easy_setopt(instance->handle, CURLOPT_MAXREDIRS, 3);
+        
         curl_easy_setopt(instance->handle, CURLOPT_CUSTOMREQUEST, "DELETE");
         curl_easy_setopt(instance->handle, CURLOPT_ENCODING, "identity, deflate, gzip");
         curl_easy_setopt(instance->handle, CURLOPT_URL, RSTRING_PTR(url));
