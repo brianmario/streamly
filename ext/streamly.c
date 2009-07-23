@@ -165,6 +165,7 @@ VALUE rb_streamly_get(int argc, VALUE * argv, VALUE self) {
         curl_easy_setopt(instance->handle, CURLOPT_FOLLOWLOCATION, 1);
         curl_easy_setopt(instance->handle, CURLOPT_MAXREDIRS, 3);
         
+        curl_easy_setopt(instance->handle, CURLOPT_HTTPGET, 1);
         curl_easy_setopt(instance->handle, CURLOPT_ENCODING, "identity, deflate, gzip");
         curl_easy_setopt(instance->handle, CURLOPT_URL, RSTRING_PTR(url));
         
