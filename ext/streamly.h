@@ -18,7 +18,9 @@ VALUE eConnectionFailed, ePartialFileError, eTimeoutError, eTooManyRedirects;
 
 struct curl_instance {
     CURL* handle;
-    char * upload_stream;
+    VALUE upload_stream;
+    VALUE header_handler;
+    VALUE options;
     char error_buf[CURL_ERROR_SIZE];
     struct curl_slist* headers;
 };
@@ -26,10 +28,11 @@ struct curl_instance {
 // libcurl callbacks
 static size_t header_handler(char * stream, size_t size, size_t nmemb, VALUE handler);
 static size_t data_handler(char * stream, size_t size, size_t nmemb, VALUE handler);
-static size_t put_data_handler(char * stream, size_t size, size_t nmemb, char ** upload_stream);
+static size_t put_data_handler(char * stream, size_t size, size_t nmemb, VALUE upload_stream);
 
 static VALUE select_error(CURLcode code);
 static VALUE each_http_header(VALUE header, VALUE header_array);
+void streamly_instance_mark(struct curl_instance *curl);
 void streamly_instance_free(struct curl_instance *curl);
 
 VALUE rb_streamly_new(VALUE klass);
