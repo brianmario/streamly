@@ -22,6 +22,21 @@ static size_t data_handler(char * stream, size_t size, size_t nmemb, VALUE handl
     return size * nmemb;
 }
 
+static size_t put_data_handler(char * stream, size_t size, size_t nmemb, char ** upload_stream) {
+    size_t result = 0;
+    
+    TRAP_BEG;
+    if (upload_stream != NULL && *upload_stream != NULL) {
+        int len = size * nmemb;
+        char *s1 = strncpy(stream, *upload_stream, len);
+        result = strlen(s1);
+        *upload_stream += result;
+    }
+    TRAP_END;
+    
+    return result;
+}
+
 static VALUE select_error(CURLcode code) {
     VALUE error = Qnil;
     
@@ -74,13 +89,13 @@ void streamly_instance_free(struct curl_instance *curl) {
     free(curl);
 }
 
+// Our constructor for ruby
 VALUE rb_streamly_new(VALUE klass) {
     struct curl_instance* curl;
     VALUE obj = Data_Make_Struct(klass, struct curl_instance, NULL, streamly_instance_free, curl);
     rb_obj_call_init(obj, 0, 0);
     return obj;
 }
-
 VALUE rb_streamly_init(VALUE self) {
     struct curl_instance *instance;
     Data_Get_Struct(self, struct curl_instance, instance);
@@ -140,7 +155,7 @@ VALUE rb_streamly_head(int argc, VALUE * argv, VALUE self) {
             instance->headers = NULL;
         }
         curl_easy_reset(instance->handle);
-        instance->upload_buf = NULL;
+        instance->upload_stream = NULL;
         
         if (TYPE(handler) == T_STRING) {
             return handler;
@@ -207,7 +222,7 @@ VALUE rb_streamly_get(int argc, VALUE * argv, VALUE self) {
             instance->headers = NULL;
         }
         curl_easy_reset(instance->handle);
-        instance->upload_buf = NULL;
+        instance->upload_stream = NULL;
         
         if (TYPE(handler) == T_STRING) {
             return handler;
@@ -279,7 +294,7 @@ VALUE rb_streamly_post(int argc, VALUE * argv, VALUE self) {
             instance->headers = NULL;
         }
         curl_easy_reset(instance->handle);
-        instance->upload_buf = NULL;
+        instance->upload_stream = NULL;
         
         if (TYPE(handler) == T_STRING) {
             return handler;
@@ -318,13 +333,13 @@ VALUE rb_streamly_put(int argc, VALUE * argv, VALUE self) {
         // curl_easy_setopt(instance->handle, CURLOPT_HEADERDATA, handler);
         
         // Let libcurl know this is an HTTP PUT request
+        instance->upload_stream = RSTRING_PTR(payload);
+        int len = RSTRING_LEN(payload);
+        
         curl_easy_setopt(instance->handle, CURLOPT_UPLOAD, 1);
-        // VALUE data = rb_iv_get(request, "@upload_data");
-        // state->upload_buf = StringValuePtr(data);
-        // int len = RSTRING_LEN(data);
-        // curl_easy_setopt(instance->handle, CURLOPT_READFUNCTION, &session_read_handler);
-        // curl_easy_setopt(instance->handle, CURLOPT_READDATA, &state->upload_buf);
-        // curl_easy_setopt(instance->handle, CURLOPT_INFILESIZE, len);
+        curl_easy_setopt(instance->handle, CURLOPT_READFUNCTION, &put_data_handler);
+        curl_easy_setopt(instance->handle, CURLOPT_READDATA, &instance->upload_stream);
+        curl_easy_setopt(instance->handle, CURLOPT_INFILESIZE, len);
         
         // Body handling
         curl_easy_setopt(instance->handle, CURLOPT_WRITEFUNCTION, (curl_write_callback)&data_handler);
@@ -354,7 +369,7 @@ VALUE rb_streamly_put(int argc, VALUE * argv, VALUE self) {
             instance->headers = NULL;
         }
         curl_easy_reset(instance->handle);
-        instance->upload_buf = NULL;
+        instance->upload_stream = NULL;
         
         if (TYPE(handler) == T_STRING) {
             return handler;
@@ -421,7 +436,7 @@ VALUE rb_streamly_delete(int argc, VALUE * argv, VALUE self) {
             instance->headers = NULL;
         }
         curl_easy_reset(instance->handle);
-        instance->upload_buf = NULL;
+        instance->upload_stream = NULL;
         
         if (TYPE(handler) == T_STRING) {
             return handler;

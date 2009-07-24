@@ -1,6 +1,6 @@
 # encoding: UTF-8
 require 'streamly_ext'
 
-module Streamly
+class Streamly
   VERSION = "0.1.0"
 end
