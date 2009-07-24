@@ -25,6 +25,13 @@ static size_t data_handler(char * stream, size_t size, size_t nmemb, VALUE handl
 static size_t put_data_handler(char * stream, size_t size, size_t nmemb, char ** upload_stream) {
     size_t result = 0;
     
+    // TODO
+    // Change upload_stream back to a VALUE
+    // if TYPE(upload_stream) == T_STRING - read at most "len" continuously
+    // if upload_stream is IO-like, read chunks of it
+    // OR
+    // if upload_stream responds to "each", use that?
+    
     TRAP_BEG;
     if (upload_stream != NULL && *upload_stream != NULL) {
         int len = size * nmemb;
@@ -263,6 +270,15 @@ VALUE rb_streamly_post(int argc, VALUE * argv, VALUE self) {
 
         // TODO: support "Transfer-Encoding: chunked" for request body
         // TODO: support CURLOPT_HTTPPOST (multipart/formdata)
+        //
+        // The following are optional, but allow you to send the POST body chunked
+        // or even just allow you to stream it.
+        // This is probably prefered for this library because it's all about streaming ;)
+        // curl_easy_setopt(instance->handle, CURLOPT_UPLOAD, 1);
+        // curl_easy_setopt(instance->handle, CURLOPT_READFUNCTION, &put_data_handler);
+        // curl_easy_setopt(instance->handle, CURLOPT_READDATA, &instance->upload_stream);
+        // curl_easy_setopt(instance->handle, CURLOPT_INFILESIZE, len);
+        
         curl_easy_setopt(instance->handle, CURLOPT_POSTFIELDS, RSTRING_PTR(payload));
         curl_easy_setopt(instance->handle, CURLOPT_POSTFIELDSIZE, RSTRING_LEN(payload));
         
