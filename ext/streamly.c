@@ -214,6 +214,9 @@ VALUE rb_streamly_execute(int argc, VALUE * argv, VALUE self) {
         curl_easy_setopt(instance->handle, CURLOPT_WRITEDATA, instance->response_body_handler);
     }
     
+    curl_easy_setopt(instance->handle, CURLOPT_SSL_VERIFYPEER, 0);
+    curl_easy_setopt(instance->handle, CURLOPT_SSL_VERIFYHOST, 0);
+    
     curl_easy_setopt(instance->handle, CURLOPT_ERRORBUFFER, instance->error_buffer);
     
     
