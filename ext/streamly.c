@@ -379,12 +379,15 @@ VALUE rb_streamly_put(int argc, VALUE * argv, VALUE self) {
         
         // Let libcurl know this is an HTTP PUT request
         instance->upload_stream = payload;
-        int len = RSTRING_LEN(payload);
+        // int len = RSTRING_LEN(payload);
         
-        curl_easy_setopt(instance->handle, CURLOPT_UPLOAD, 1);
-        curl_easy_setopt(instance->handle, CURLOPT_READFUNCTION, &put_data_handler);
-        curl_easy_setopt(instance->handle, CURLOPT_READDATA, &instance->upload_stream);
-        curl_easy_setopt(instance->handle, CURLOPT_INFILESIZE, len);
+        curl_easy_setopt(instance->handle, CURLOPT_CUSTOMREQUEST, "PUT");
+        // curl_easy_setopt(instance->handle, CURLOPT_UPLOAD, 1);
+        // curl_easy_setopt(instance->handle, CURLOPT_READFUNCTION, &put_data_handler);
+        // curl_easy_setopt(instance->handle, CURLOPT_READDATA, &instance->upload_stream);
+        // curl_easy_setopt(instance->handle, CURLOPT_INFILESIZE, len);
+        curl_easy_setopt(instance->handle, CURLOPT_POSTFIELDS, RSTRING_PTR(payload));
+        curl_easy_setopt(instance->handle, CURLOPT_POSTFIELDSIZE, RSTRING_LEN(payload));
         
         // Body handling
         curl_easy_setopt(instance->handle, CURLOPT_WRITEFUNCTION, (curl_write_callback)&data_handler);
