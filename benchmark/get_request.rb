@@ -1,7 +1,7 @@
 # encoding: UTF-8
 
 require 'net/http'
-require '../lib/streamly'
+require 'lib/streamly'
 require 'benchmark'
 
 Benchmark.bm do |x|
