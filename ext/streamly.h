@@ -25,24 +25,19 @@ struct curl_instance {
     VALUE request_payload_handler;
     VALUE response_header_handler;
     VALUE response_body_handler;
+    VALUE request_method;
     VALUE options;
 };
 
 // libcurl callbacks
-// static size_t header_handler(char * stream, size_t size, size_t nmemb, VALUE handler);
-// static size_t data_handler(char * stream, size_t size, size_t nmemb, VALUE handler);
+static size_t header_handler(char * stream, size_t size, size_t nmemb, VALUE handler);
+static size_t data_handler(char * stream, size_t size, size_t nmemb, VALUE handler);
 // static size_t put_data_handler(char * stream, size_t size, size_t nmemb, VALUE upload_stream);
 // 
-// static VALUE select_error(CURLcode code);
-// static VALUE each_http_header(VALUE header, VALUE header_array);
-void streamly_instance_mark(struct curl_instance *curl);
-void streamly_instance_free(struct curl_instance *curl);
+static VALUE select_error(CURLcode code);
+static VALUE each_http_header(VALUE header, VALUE header_array);
+void streamly_instance_mark(struct curl_instance * instance);
+void streamly_instance_free(struct curl_instance * instance);
 
-VALUE rb_streamly_new(VALUE klass);
-VALUE rb_streamly_init(VALUE klass);
-
-// VALUE rb_streamly_head(int argc, VALUE * argv, VALUE klass);
-// VALUE rb_streamly_get(int argc, VALUE * argv, VALUE klass);
-// VALUE rb_streamly_post(int argc, VALUE * argv, VALUE klass);
-// VALUE rb_streamly_put(int argc, VALUE * argv, VALUE klass);
-// VALUE rb_streamly_delete(int argc, VALUE * argv, VALUE klass); 
+VALUE rb_streamly_new(int argc, VALUE * argv, VALUE klass);
+VALUE rb_streamly_new(int argc, VALUE * argv, VALUE self);

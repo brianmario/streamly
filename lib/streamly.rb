@@ -6,7 +6,7 @@ module Streamly
   
   class Request
     def self.execute(args)
-      new.execute(args)
+      new(args).execute
     end
   end
   

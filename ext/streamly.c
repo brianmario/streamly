@@ -44,16 +44,17 @@ static size_t data_handler(char * stream, size_t size, size_t nmemb, VALUE handl
     return size * nmemb;
 }
 
-void streamly_instance_mark(struct curl_instance *curl) {
-    rb_gc_mark(curl->request_payload_handler);
-    rb_gc_mark(curl->response_header_handler);
-    rb_gc_mark(curl->response_body_handler);
-    rb_gc_mark(curl->options);
+void streamly_instance_mark(struct curl_instance * instance) {
+    rb_gc_mark(instance->request_method);
+    rb_gc_mark(instance->request_payload_handler);
+    rb_gc_mark(instance->response_header_handler);
+    rb_gc_mark(instance->response_body_handler);
+    rb_gc_mark(instance->options);
 }
 
-void streamly_instance_free(struct curl_instance *curl) {
-    curl_easy_cleanup(curl->handle);
-    free(curl);
+void streamly_instance_free(struct curl_instance * instance) {
+    curl_easy_cleanup(instance->handle);
+    free(instance);
 }
 
 static VALUE each_http_header(VALUE header, VALUE self) {
@@ -107,37 +108,33 @@ static VALUE select_error(CURLcode code) {
 }
 
 // Our constructor for ruby
-VALUE rb_streamly_new(VALUE klass) {
-    struct curl_instance* curl;
-    VALUE obj = Data_Make_Struct(klass, struct curl_instance, streamly_instance_mark, streamly_instance_free, curl);
-    rb_obj_call_init(obj, 0, 0);
+VALUE rb_streamly_new(int argc, VALUE * argv, VALUE klass) {
+    struct curl_instance * instance;
+    VALUE obj = Data_Make_Struct(klass, struct curl_instance, streamly_instance_mark, streamly_instance_free, instance);
+    rb_obj_call_init(obj, argc, argv);
     return obj;
 }
 
-VALUE rb_streamly_init(VALUE self) {
-    struct curl_instance *instance;
-    Data_Get_Struct(self, struct curl_instance, instance);
+VALUE rb_streamly_init(int argc, VALUE * argv, VALUE self) {
+    struct curl_instance * instance;
+    char * credential_sep = ":";
+    VALUE args, url, payload, headers, username, password, credentials;
+    
+    GetInstance(self, instance);
     instance->handle = curl_easy_init();
+    instance->request_headers = NULL;
+    instance->request_method = Qnil;
     instance->request_payload_handler = Qnil;
     instance->response_header_handler = Qnil;
     instance->response_body_handler = Qnil;
     instance->options = Qnil;
-    return self;
-}
-
-VALUE rb_streamly_execute(int argc, VALUE * argv, VALUE self) {
-    CURLcode res;
-    struct curl_instance * instance;
-    GetInstance(self, instance);
-    char * credential_sep = ":";
-    VALUE args, method, url, payload, headers, username, password, credentials;
     
     rb_scan_args(argc, argv, "10", &args);
     
     // Ensure our args parameter is a hash
     Check_Type(args, T_HASH);
     
-    method = rb_hash_aref(args, sym_method);
+    instance->request_method = rb_hash_aref(args, sym_method);
     url = rb_hash_aref(args, sym_url);
     payload = rb_hash_aref(args, sym_payload);
     headers = rb_hash_aref(args, sym_headers);
@@ -147,11 +144,11 @@ VALUE rb_streamly_execute(int argc, VALUE * argv, VALUE self) {
     instance->response_body_handler = rb_hash_aref(args, sym_response_body_handler);
     
     // First lets verify we have a :method key
-    if (NIL_P(method)) {
+    if (NIL_P(instance->request_method)) {
         rb_raise(eStreamlyError, "You must specify a :method");
     } else {
         // OK, a :method was specified, but if it's POST or PUT we require a :payload
-        if (method == sym_post || method == sym_put) {
+        if (instance->request_method == sym_post || instance->request_method == sym_put) {
             if (NIL_P(payload)) {
                 rb_raise(eStreamlyError, "You must specify a :payload for POST and PUT requests");
             }
@@ -164,7 +161,7 @@ VALUE rb_streamly_execute(int argc, VALUE * argv, VALUE self) {
     }
     
     instance->response_header_handler = rb_str_new2("");
-    if (method != sym_head && NIL_P(instance->response_body_handler)) {
+    if (instance->request_method != sym_head && NIL_P(instance->response_body_handler)) {
         instance->response_body_handler = rb_str_new2("");
     }
     
@@ -177,11 +174,11 @@ VALUE rb_streamly_execute(int argc, VALUE * argv, VALUE self) {
     // So far so good, lets start setting up our request
     
     // Set the type of request
-    if (method == sym_head) {
+    if (instance->request_method == sym_head) {
         curl_easy_setopt(instance->handle, CURLOPT_NOBODY, 1);
-    } else if (method == sym_get) {
+    } else if (instance->request_method == sym_get) {
         curl_easy_setopt(instance->handle, CURLOPT_HTTPGET, 1);
-    } else if (method == sym_post) {
+    } else if (instance->request_method == sym_post) {
         curl_easy_setopt(instance->handle, CURLOPT_POST, 1);
         curl_easy_setopt(instance->handle, CURLOPT_POSTFIELDS, RSTRING_PTR(payload));
         curl_easy_setopt(instance->handle, CURLOPT_POSTFIELDSIZE, RSTRING_LEN(payload));
@@ -193,7 +190,7 @@ VALUE rb_streamly_execute(int argc, VALUE * argv, VALUE self) {
         // curl_easy_setopt(instance->handle, CURLOPT_READFUNCTION, &put_data_handler);
         // curl_easy_setopt(instance->handle, CURLOPT_READDATA, &instance->upload_stream);
         // curl_easy_setopt(instance->handle, CURLOPT_INFILESIZE, len);
-    } else if (method == sym_put) {
+    } else if (instance->request_method == sym_put) {
         curl_easy_setopt(instance->handle, CURLOPT_CUSTOMREQUEST, "PUT");
         curl_easy_setopt(instance->handle, CURLOPT_POSTFIELDS, RSTRING_PTR(payload));
         curl_easy_setopt(instance->handle, CURLOPT_POSTFIELDSIZE, RSTRING_LEN(payload));
@@ -203,7 +200,7 @@ VALUE rb_streamly_execute(int argc, VALUE * argv, VALUE self) {
         // curl_easy_setopt(instance->handle, CURLOPT_READFUNCTION, &put_data_handler);
         // curl_easy_setopt(instance->handle, CURLOPT_READDATA, &instance->upload_stream);
         // curl_easy_setopt(instance->handle, CURLOPT_INFILESIZE, len);
-    } else if (method == sym_delete) {
+    } else if (instance->request_method == sym_delete) {
         curl_easy_setopt(instance->handle, CURLOPT_CUSTOMREQUEST, "DELETE");
     }
     
@@ -217,13 +214,13 @@ VALUE rb_streamly_execute(int argc, VALUE * argv, VALUE self) {
     curl_easy_setopt(instance->handle, CURLOPT_HEADERDATA, instance->response_header_handler);
     
     // Response body handling
-    if (method != sym_head) {
+    if (instance->request_method != sym_head) {
         curl_easy_setopt(instance->handle, CURLOPT_ENCODING, "identity, deflate, gzip");
         curl_easy_setopt(instance->handle, CURLOPT_WRITEFUNCTION, &data_handler);
         curl_easy_setopt(instance->handle, CURLOPT_WRITEDATA, instance->response_body_handler);
     }
     
-    // curl_easy_setopt(instance, CURLOPT_USERPWD, NULL);
+    curl_easy_setopt(instance, CURLOPT_USERPWD, NULL);
     if (!NIL_P(username) || !NIL_P(password)) {
         credentials = rb_str_new2("");
         rb_str_buf_cat(credentials, RSTRING_PTR(username), RSTRING_LEN(username));
@@ -239,7 +236,14 @@ VALUE rb_streamly_execute(int argc, VALUE * argv, VALUE self) {
     
     curl_easy_setopt(instance->handle, CURLOPT_ERRORBUFFER, instance->error_buffer);
     
-    
+    return self;
+}
+
+VALUE rb_streamly_execute(int argc, VALUE * argv, VALUE self) {
+    CURLcode res;
+    struct curl_instance * instance;
+    GetInstance(self, instance);
+
     // Done setting up, lets do this!
     res = curl_easy_perform(instance->handle);
     if (CURLE_OK != res) {
@@ -247,14 +251,14 @@ VALUE rb_streamly_execute(int argc, VALUE * argv, VALUE self) {
     }
     
     // Cleanup
-    if (!NIL_P(headers)) {
+    if (instance->request_headers != NULL) {
         curl_slist_free_all(instance->request_headers);
         instance->request_headers = NULL;
     }
     curl_easy_reset(instance->handle);
     instance->request_payload_handler = Qnil;
 
-    if (method == sym_head && TYPE(instance->response_header_handler) == T_STRING) {
+    if (instance->request_method == sym_head && TYPE(instance->response_header_handler) == T_STRING) {
         return instance->response_header_handler;
     } else if (TYPE(instance->response_body_handler) == T_STRING) {
         return instance->response_body_handler;
@@ -268,8 +272,8 @@ void Init_streamly_ext() {
     mStreamly = rb_define_module("Streamly");
     
     cRequest = rb_define_class_under(mStreamly, "Request", rb_cObject);
-    rb_define_singleton_method(cRequest, "new", rb_streamly_new, 0);
-    rb_define_method(cRequest, "initialize", rb_streamly_init, 0);
+    rb_define_singleton_method(cRequest, "new", rb_streamly_new, -1);
+    rb_define_method(cRequest, "initialize", rb_streamly_init, -1);
     rb_define_method(cRequest, "execute", rb_streamly_execute, -1);
     
     eStreamlyError = rb_define_class_under(mStreamly, "Error", rb_eStandardError);
