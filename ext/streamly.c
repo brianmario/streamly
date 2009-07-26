@@ -59,15 +59,18 @@ void streamly_instance_free(struct curl_instance *curl) {
 static VALUE each_http_header(VALUE header, VALUE self) {
     struct curl_instance * instance;
     Data_Get_Struct(self, struct curl_instance, instance);
+    VALUE name, value, header_str = Qnil;
 
-    VALUE name = rb_obj_as_string(rb_ary_entry(header, 0));
-    VALUE value = rb_obj_as_string(rb_ary_entry(header, 1));
+    name = rb_obj_as_string(rb_ary_entry(header, 0));
+    value = rb_obj_as_string(rb_ary_entry(header, 1));
 
-    VALUE header_str = Qnil;
     header_str = rb_str_plus(name, rb_str_new2(": "));
     header_str = rb_str_plus(header_str, value);
 
     instance->request_headers = curl_slist_append(instance->request_headers, RSTRING_PTR(header_str));
+    rb_gc_mark(name);
+    rb_gc_mark(value);
+    rb_gc_mark(header_str);
     return Qnil;
 }
 
@@ -126,7 +129,8 @@ VALUE rb_streamly_execute(int argc, VALUE * argv, VALUE self) {
     CURLcode res;
     struct curl_instance * instance;
     GetInstance(self, instance);
-    VALUE args, method, url, payload, headers;
+    char * credential_sep = ":";
+    VALUE args, method, url, payload, headers, username, password, credentials;
     
     rb_scan_args(argc, argv, "10", &args);
     
@@ -137,6 +141,8 @@ VALUE rb_streamly_execute(int argc, VALUE * argv, VALUE self) {
     url = rb_hash_aref(args, sym_url);
     payload = rb_hash_aref(args, sym_payload);
     headers = rb_hash_aref(args, sym_headers);
+    username = rb_hash_aref(args, sym_username);
+    password = rb_hash_aref(args, sym_password);
     instance->response_header_handler = rb_hash_aref(args, sym_response_header_handler);
     instance->response_body_handler = rb_hash_aref(args, sym_response_body_handler);
     
@@ -179,8 +185,10 @@ VALUE rb_streamly_execute(int argc, VALUE * argv, VALUE self) {
         curl_easy_setopt(instance->handle, CURLOPT_POST, 1);
         curl_easy_setopt(instance->handle, CURLOPT_POSTFIELDS, RSTRING_PTR(payload));
         curl_easy_setopt(instance->handle, CURLOPT_POSTFIELDSIZE, RSTRING_LEN(payload));
+        
         // (multipart)
         // curl_easy_setopt(instance->handle, CURLOPT_HTTPPOST, 1);
+        
         // TODO: get streaming upload working
         // curl_easy_setopt(instance->handle, CURLOPT_READFUNCTION, &put_data_handler);
         // curl_easy_setopt(instance->handle, CURLOPT_READDATA, &instance->upload_stream);
@@ -189,6 +197,7 @@ VALUE rb_streamly_execute(int argc, VALUE * argv, VALUE self) {
         curl_easy_setopt(instance->handle, CURLOPT_CUSTOMREQUEST, "PUT");
         curl_easy_setopt(instance->handle, CURLOPT_POSTFIELDS, RSTRING_PTR(payload));
         curl_easy_setopt(instance->handle, CURLOPT_POSTFIELDSIZE, RSTRING_LEN(payload));
+        
         // TODO: get streaming upload working
         // curl_easy_setopt(instance->handle, CURLOPT_UPLOAD, 1);
         // curl_easy_setopt(instance->handle, CURLOPT_READFUNCTION, &put_data_handler);
@@ -212,6 +221,17 @@ VALUE rb_streamly_execute(int argc, VALUE * argv, VALUE self) {
         curl_easy_setopt(instance->handle, CURLOPT_ENCODING, "identity, deflate, gzip");
         curl_easy_setopt(instance->handle, CURLOPT_WRITEFUNCTION, &data_handler);
         curl_easy_setopt(instance->handle, CURLOPT_WRITEDATA, instance->response_body_handler);
+    }
+    
+    // curl_easy_setopt(instance, CURLOPT_USERPWD, NULL);
+    if (!NIL_P(username) || !NIL_P(password)) {
+        credentials = rb_str_new2("");
+        rb_str_buf_cat(credentials, RSTRING_PTR(username), RSTRING_LEN(username));
+        rb_str_buf_cat(credentials, credential_sep, 1);
+        rb_str_buf_cat(credentials, RSTRING_PTR(password), RSTRING_LEN(password));
+        curl_easy_setopt(instance->handle, CURLOPT_HTTPAUTH, CURLAUTH_BASIC | CURLAUTH_DIGEST);
+        curl_easy_setopt(instance->handle, CURLOPT_USERPWD, RSTRING_PTR(credentials));
+        rb_gc_mark(credentials);
     }
     
     curl_easy_setopt(instance->handle, CURLOPT_SSL_VERIFYPEER, 0);
@@ -270,6 +290,8 @@ void Init_streamly_ext() {
     sym_post = ID2SYM(rb_intern("post"));
     sym_put = ID2SYM(rb_intern("put"));
     sym_delete = ID2SYM(rb_intern("delete"));
+    sym_username = ID2SYM(rb_intern("username"));
+    sym_password = ID2SYM(rb_intern("password"));
     sym_response_header_handler = ID2SYM(rb_intern("response_header_handler"));
     sym_response_body_handler = ID2SYM(rb_intern("response_body_handler"));
 }

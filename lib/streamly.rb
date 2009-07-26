@@ -10,25 +10,25 @@ module Streamly
     end
   end
   
-  def self.head(url, headers={}, &block)
+  def self.head(url, headers=nil, &block)
     opts = {:method => :head, :url => url, :headers => headers}
     opts.merge!({:response_header_handler => block}) if block_given?
     Request.execute(opts)
   end
   
-  def self.get(url, headers={}, &block)
+  def self.get(url, headers=nil, &block)
     opts = {:method => :get, :url => url, :headers => headers}
     opts.merge!({:response_body_handler => block}) if block_given?
     Request.execute(opts)
   end
 
-  def self.post(url, payload, headers={}, &block)
+  def self.post(url, payload, headers=nil, &block)
     opts = {:method => :post, :url => url, :payload => payload, :headers => headers}
     opts.merge!({:response_body_handler => block}) if block_given?
     Request.execute(opts)
   end
 
-  def self.put(url, payload, headers={}, &block)
+  def self.put(url, payload, headers=nil, &block)
     opts = {:method => :put, :url => url, :payload => payload, :headers => headers}
     opts.merge!({:response_body_handler => block}) if block_given?
     Request.execute(opts)

@@ -4,7 +4,7 @@
 VALUE mStreamly, cRequest, eStreamlyError, eUnsupportedProtocol, eURLFormatError, eHostResolutionError;
 VALUE eConnectionFailed, ePartialFileError, eTimeoutError, eTooManyRedirects;
 VALUE sym_method, sym_url, sym_payload, sym_headers, sym_head, sym_get, sym_post, sym_put, sym_delete;
-VALUE sym_response_header_handler, sym_response_body_handler;
+VALUE sym_response_header_handler, sym_response_body_handler, sym_username, sym_password;
 
 #define GetInstance(obj, sval) (sval = (struct curl_instance*)DATA_PTR(obj));
 
