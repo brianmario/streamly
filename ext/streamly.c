@@ -107,7 +107,28 @@ static VALUE select_error(CURLcode code) {
     return error;
 }
 
-// Our constructor for ruby
+/*
+ * Document-class: Streamly::Request
+ *
+ * A streaming REST client for Ruby that uses libcurl to do the heavy lifting.
+ * The API is almost exactly like rest-client, so users of that library should find it very familiar.
+ */
+/*
+ * Document-method: new
+ *
+ * call-seq: new(args)
+ *
+ * +args+ should be a Hash and is required
+ *  This Hash should at least contain +:url+ and +:method+ keys.
+ *  You may also provide the following optional keys:
+ *    +:headers+ - should be a Hash of name/value pairs
+ *    +:response_header_handler+ - can be a string or object that responds to #call
+ *      If an object was passed, it's #call method will be called and passed the current chunk of data
+ *    +:response_body_handler+ - can be a string or object that responds to #call
+ *      If an object was passed, it's #call method will be called and passed the current chunk of data
+ *    +:payload+ - If +:method+ is either +:post+ or +:put+ this will be used as the request body
+ *
+ */
 VALUE rb_streamly_new(int argc, VALUE * argv, VALUE klass) {
     struct curl_instance * instance;
     VALUE obj = Data_Make_Struct(klass, struct curl_instance, streamly_instance_mark, streamly_instance_free, instance);
@@ -115,6 +136,22 @@ VALUE rb_streamly_new(int argc, VALUE * argv, VALUE klass) {
     return obj;
 }
 
+/*
+ * Document-method: initialize
+ *
+ * call-seq: initialize(args)
+ *
+ * +args+ should be a Hash and is required
+ *  This Hash should at least contain +:url+ and +:method+ keys.
+ *  You may also provide the following optional keys:
+ *    +:headers+ - should be a Hash of name/value pairs
+ *    +:response_header_handler+ - can be a string or object that responds to #call
+ *      If an object was passed, it's #call method will be called and passed the current chunk of data
+ *    +:response_body_handler+ - can be a string or object that responds to #call
+ *      If an object was passed, it's #call method will be called and passed the current chunk of data
+ *    +:payload+ - If +:method+ is either +:post+ or +:put+ this will be used as the request body
+ *
+ */
 VALUE rb_streamly_init(int argc, VALUE * argv, VALUE self) {
     struct curl_instance * instance;
     char * credential_sep = ":";
@@ -241,6 +278,11 @@ VALUE rb_streamly_init(int argc, VALUE * argv, VALUE self) {
     return self;
 }
 
+/*
+ * Document-method: rb_streamly_execute
+ *
+ * call-seq: rb_streamly_execute
+ */
 VALUE rb_streamly_execute(int argc, VALUE * argv, VALUE self) {
     CURLcode res;
     struct curl_instance * instance;
