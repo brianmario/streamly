@@ -160,7 +160,9 @@ VALUE rb_streamly_init(int argc, VALUE * argv, VALUE self) {
         rb_raise(eStreamlyError, "You must specify a :url to request");
     }
     
-    instance->response_header_handler = rb_str_new2("");
+    if (NIL_P(instance->response_header_handler)) {
+        instance->response_header_handler = rb_str_new2("");
+    }
     if (instance->request_method != sym_head && NIL_P(instance->response_body_handler)) {
         instance->response_body_handler = rb_str_new2("");
     }
