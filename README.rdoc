@@ -1,0 +1,44 @@
+= A streaming REST client for Ruby that uses libcurl
+
+== Features
+* rest-client like API
+* Streaming API allows the caller to be handed chunks of the response while it's being received
+
+== How to install
+
+Install it like any other gem hosted at the Githubs like so:
+
+(more instructions here: http://gems.github.com)
+
+ sudo gem install brianmario-streamly
+
+== Example of use
+
+=== A basic GET request
+
+ Streamly.get('www.somehost.com')
+
+=== A streaming GET request
+
+ Streamly.get('www.somehost.com') do |chunk|
+   # do something with _chunk_
+ end
+
+=== A basic POST request
+
+ Streamly.post('www.somehost.com', 'blah=foo')
+
+=== A streaming POST request
+
+ Streamly.post('www.somehost.com', 'blah=foo') do |chunk|
+   # do something with _chunk_
+ end
+
+== Benchmarks
+
+Fetching 2,405,005 bytes of JSON from a local lighttpd server
+
+* Shell out to curl: 0.046s
+* rest-client: 0.205s
+* Streamly: 0.011s
+
