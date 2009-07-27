@@ -47,3 +47,16 @@ Streaming, and parsing 2,405,005 bytes of JSON from a local lighttpd server
 * Streamly: 0.231s
 * Shell out to curl: 0.341s
 * rest-client: 0.447s
+
+== Special Thanks
+
+There are quite a few *extremely* nice REST client libraries out there for Ruby today. I especially owe thanks
+to the following projects. Without them I probably would have never had the inspiration to even take the time
+to write this library. In Streamly, you'll find snippets of code, API patterns and examples from all 3 of these projects.
+I'll do my best to make sure I give credit where it's due *in* the source. Please let me know if I've missed something!
+
+* rest-client - https://github.com/adamwiggins/rest-client
+* curb - https://github.com/taf2/curb
+* patron - https://github.com/toland/patron
+
+And again, the Github crew for this amazing service!
