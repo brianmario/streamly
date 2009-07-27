@@ -57,9 +57,11 @@ void streamly_instance_free(struct curl_instance * instance) {
     free(instance);
 }
 
+// Initially borrowed from Patron - http://github.com/toland/patron
+// slightly modified for Streamly
 static VALUE each_http_header(VALUE header, VALUE self) {
     struct curl_instance * instance;
-    Data_Get_Struct(self, struct curl_instance, instance);
+    GetInstance(self, instance);
     VALUE name, value, header_str = Qnil;
 
     name = rb_obj_as_string(rb_ary_entry(header, 0));
@@ -75,6 +77,8 @@ static VALUE each_http_header(VALUE header, VALUE self) {
     return Qnil;
 }
 
+// Initially borrowed from Patron - http://github.com/toland/patron
+// slightly modified for Streamly
 static VALUE select_error(CURLcode code) {
     VALUE error = Qnil;
     
