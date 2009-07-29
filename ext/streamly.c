@@ -62,17 +62,13 @@ void streamly_instance_free(struct curl_instance * instance) {
 static VALUE each_http_header(VALUE header, VALUE self) {
     struct curl_instance * instance;
     GetInstance(self, instance);
-    VALUE name, value, header_str = Qnil;
-
-    name = rb_obj_as_string(rb_ary_entry(header, 0));
-    value = rb_obj_as_string(rb_ary_entry(header, 1));
-
-    header_str = rb_str_plus(name, rb_str_new2(": "));
-    header_str = rb_str_plus(header_str, value);
+    VALUE header_str = rb_str_new2("");
+    
+    rb_str_buf_cat(header_str, RSTRING_PTR(rb_ary_entry(header, 0)), RSTRING_LEN(rb_ary_entry(header, 0)));
+    rb_str_buf_cat(header_str, ": ", 2);
+    rb_str_buf_cat(header_str, RSTRING_PTR(rb_ary_entry(header, 1)), RSTRING_LEN(rb_ary_entry(header, 1)));
 
     instance->request_headers = curl_slist_append(instance->request_headers, RSTRING_PTR(header_str));
-    rb_gc_mark(name);
-    rb_gc_mark(value);
     rb_gc_mark(header_str);
     return Qnil;
 }
