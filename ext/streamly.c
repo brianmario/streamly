@@ -263,7 +263,7 @@ VALUE rb_streamly_init(int argc, VALUE * argv, VALUE self) {
         curl_easy_setopt(instance->handle, CURLOPT_WRITEDATA, instance->response_body_handler);
     }
     
-    curl_easy_setopt(instance, CURLOPT_USERPWD, NULL);
+    // curl_easy_setopt(instance, CURLOPT_USERPWD, NULL);
     if (!NIL_P(username) || !NIL_P(password)) {
         credentials = rb_str_new2("");
         rb_str_buf_cat(credentials, RSTRING_PTR(username), RSTRING_LEN(username));
