@@ -10,17 +10,17 @@ require 'benchmark'
 url = ARGV[0]
 
 Benchmark.bm do |x|
-  puts "Shell out to curl"
-  x.report do
-    (ARGV[1] || 1).to_i.times do
-      `curl -s --compressed #{url}`
-    end
-  end
-  
   puts "Streamly"
   x.report do
     (ARGV[1] || 1).to_i.times do
       Streamly.get(url)
+    end
+  end
+  
+  puts "Shell out to curl"
+  x.report do
+    (ARGV[1] || 1).to_i.times do
+      `curl -s --compressed #{url}`
     end
   end
   
