@@ -24,6 +24,10 @@ Or streaming
    # do something with header_chunk
  end
 
+You can also pass a Hash of headers
+
+ Streamly.head('www.somehost.com', {"User-Agent" => "all your base are belong to us"})
+
 === A basic GET request
 
  Streamly.get('www.somehost.com')
@@ -33,6 +37,10 @@ Or streaming
  Streamly.get('www.somehost.com') do |body_chunk|
    # do something with body_chunk
  end
+
+You can also pass a Hash of headers
+
+ Streamly.get('www.somehost.com', {"User-Agent" => "all your base are belong to us"})
 
 === A basic POST request
 
@@ -44,6 +52,10 @@ Or streaming
    # do something with body_chunk
  end
 
+You can also pass a Hash of headers
+
+ Streamly.post('www.somehost.com', 'blah=foo', {"User-Agent" => "all your base are belong to us"})
+
 === A basic PUT request
 
  Streamly.put('www.somehost.com', 'blah=foo')
@@ -54,6 +66,10 @@ Or streaming
    # do something with body_chunk
  end
 
+You can also pass a Hash of headers
+
+ Streamly.put('www.somehost.com', 'blah=foo', {"User-Agent" => "all your base are belong to us"})
+
 === A basic DELETE request
 
  Streamly.delete('www.somehost.com')
@@ -63,6 +79,10 @@ Or streaming
  Streamly.delete('www.somehost.com') do |body_chunk|
    # do something with body_chunk
  end
+
+You can also pass a Hash of headers
+
+ Streamly.delete('www.somehost.com', {"User-Agent" => "all your base are belong to us"})
 
 == Benchmarks
 
