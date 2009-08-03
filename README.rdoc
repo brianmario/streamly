@@ -14,13 +14,23 @@ Install it like any other gem hosted at the Githubs like so:
 
 == Example of use
 
+=== A basic HEAD request
+
+ Streamly.head('www.somehost.com')
+
+Or streaming
+
+ Streamly.head('www.somehost.com') do |header_chunk|
+   # do something with _chunk_
+ end
+
 === A basic GET request
 
  Streamly.get('www.somehost.com')
 
-=== A streaming GET request
+Or streaming
 
- Streamly.get('www.somehost.com') do |chunk|
+ Streamly.get('www.somehost.com') do |body_chunk|
    # do something with _chunk_
  end
 
@@ -28,9 +38,29 @@ Install it like any other gem hosted at the Githubs like so:
 
  Streamly.post('www.somehost.com', 'blah=foo')
 
-=== A streaming POST request
+Or streaming
 
- Streamly.post('www.somehost.com', 'blah=foo') do |chunk|
+ Streamly.post('www.somehost.com', 'blah=foo') do |body_chunk|
+   # do something with _chunk_
+ end
+
+=== A basic PUT request
+
+ Streamly.put('www.somehost.com', 'blah=foo')
+
+Or streaming
+
+ Streamly.put('www.somehost.com', 'blah=foo') do |body_chunk|
+   # do something with _chunk_
+ end
+
+=== A basic DELETE request
+
+ Streamly.delete('www.somehost.com')
+
+Or streaming
+
+ Streamly.delete('www.somehost.com') do |body_chunk|
    # do something with _chunk_
  end
 
