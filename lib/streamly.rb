@@ -2,7 +2,7 @@
 require 'streamly_ext'
 
 module Streamly
-  VERSION = "0.1.1"
+  VERSION = "0.1.2"
   
   class Request
     # A helper method to make your fire-and-forget requests easier

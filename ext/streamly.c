@@ -1,4 +1,4 @@
-// static size_t put_data_handler(char * stream, size_t size, size_t nmemb, VALUE upload_stream) {
+// static size_t upload_data_handler(char * stream, size_t size, size_t nmemb, VALUE upload_stream) {
 //     size_t result = 0;
 //     
 //     // TODO
@@ -226,7 +226,7 @@ VALUE rb_streamly_init(int argc, VALUE * argv, VALUE self) {
         // curl_easy_setopt(instance->handle, CURLOPT_HTTPPOST, 1);
         
         // TODO: get streaming upload working
-        // curl_easy_setopt(instance->handle, CURLOPT_READFUNCTION, &put_data_handler);
+        // curl_easy_setopt(instance->handle, CURLOPT_READFUNCTION, &upload_data_handler);
         // curl_easy_setopt(instance->handle, CURLOPT_READDATA, &instance->upload_stream);
         // curl_easy_setopt(instance->handle, CURLOPT_INFILESIZE, len);
     } else if (instance->request_method == sym_put) {
@@ -236,7 +236,7 @@ VALUE rb_streamly_init(int argc, VALUE * argv, VALUE self) {
         
         // TODO: get streaming upload working
         // curl_easy_setopt(instance->handle, CURLOPT_UPLOAD, 1);
-        // curl_easy_setopt(instance->handle, CURLOPT_READFUNCTION, &put_data_handler);
+        // curl_easy_setopt(instance->handle, CURLOPT_READFUNCTION, &upload_data_handler);
         // curl_easy_setopt(instance->handle, CURLOPT_READDATA, &instance->upload_stream);
         // curl_easy_setopt(instance->handle, CURLOPT_INFILESIZE, len);
     } else if (instance->request_method == sym_delete) {
