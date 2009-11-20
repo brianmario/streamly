@@ -98,6 +98,10 @@ Streaming, and parsing 2,405,005 bytes of JSON from a local lighttpd server
 * Shell out to curl: 0.341s
 * rest-client: 0.447s
 
+== Other Notes
+
+This library was basically an exercise in dealing with libcurl in C.
+
 == Special Thanks
 
 There are quite a few *extremely* nice REST client libraries out there for Ruby today. I especially owe thanks
