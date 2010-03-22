@@ -19,7 +19,7 @@ elsif !have_library('curl') or !have_header('curl/curl.h')
   EOM
 end
 
-$CFLAGS << ' -Wall'
+$CFLAGS << ' -Wall -Wextra -funroll-loops'
 # $CFLAGS << ' -O0 -ggdb'
 
 create_makefile("streamly_ext")
