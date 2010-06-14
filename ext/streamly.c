@@ -16,18 +16,31 @@
 //     //     *upload_stream += result;
 //     // }
 //     TRAP_END;
-//     
+//
 //     return result;
 // }
 
 #include "streamly.h"
+#ifdef HAVE_RUBY_ENCODING_H
+#include <ruby/encoding.h>
+static rb_encoding *utf8Encoding;
+#endif
 
 static size_t header_handler(char * stream, size_t size, size_t nmemb, VALUE handler) {
     TRAP_BEG;
     if(TYPE(handler) == T_STRING) {
         rb_str_buf_cat(handler, stream, size * nmemb);
     } else {
-        rb_funcall(handler, rb_intern("call"), 1, rb_str_new(stream, size * nmemb));
+        VALUE chunk = rb_str_new(stream, size * nmemb);
+#ifdef HAVE_RUBY_ENCODING_H
+        rb_encoding *default_internal_enc = rb_default_internal_encoding();
+        if (default_internal_enc) {
+            chunk = rb_str_export_to_enc(chunk, default_internal_enc);
+        } else {
+            chunk = rb_str_export_to_enc(chunk, utf8Encoding);
+        }
+#endif
+        rb_funcall(handler, rb_intern("call"), 1, chunk);
     }
     TRAP_END;
     return size * nmemb;
@@ -38,7 +51,16 @@ static size_t data_handler(char * stream, size_t size, size_t nmemb, VALUE handl
     if(TYPE(handler) == T_STRING) {
         rb_str_buf_cat(handler, stream, size * nmemb);
     } else {
-        rb_funcall(handler, rb_intern("call"), 1, rb_str_new(stream, size * nmemb));
+        VALUE chunk = rb_str_new(stream, size * nmemb);
+#ifdef HAVE_RUBY_ENCODING_H
+        rb_encoding *default_internal_enc = rb_default_internal_encoding();
+        if (default_internal_enc) {
+            chunk = rb_str_export_to_enc(chunk, default_internal_enc);
+        } else {
+            chunk = rb_str_export_to_enc(chunk, utf8Encoding);
+        }
+#endif
+        rb_funcall(handler, rb_intern("call"), 1, chunk);
     }
     TRAP_END;
     return size * nmemb;
@@ -199,9 +221,25 @@ VALUE rb_streamly_init(int argc, VALUE * argv, VALUE self) {
     
     if (NIL_P(instance->response_header_handler)) {
         instance->response_header_handler = rb_str_new2("");
+#ifdef HAVE_RUBY_ENCODING_H
+        rb_encoding *default_internal_enc = rb_default_internal_encoding();
+        if (default_internal_enc) {
+            instance->response_header_handler = rb_str_export_to_enc(instance->response_header_handler, default_internal_enc);
+        } else {
+            instance->response_header_handler = rb_str_export_to_enc(instance->response_header_handler, utf8Encoding);
+        }
+#endif
     }
     if (instance->request_method != sym_head && NIL_P(instance->response_body_handler)) {
         instance->response_body_handler = rb_str_new2("");
+#ifdef HAVE_RUBY_ENCODING_H
+        rb_encoding *default_internal_enc = rb_default_internal_encoding();
+        if (default_internal_enc) {
+            instance->response_body_handler = rb_str_export_to_enc(instance->response_body_handler, default_internal_enc);
+        } else {
+            instance->response_body_handler = rb_str_export_to_enc(instance->response_body_handler, utf8Encoding);
+        }
+#endif
     }
     
     if (!NIL_P(headers)) {
@@ -346,4 +384,8 @@ void Init_streamly_ext() {
     sym_password = ID2SYM(rb_intern("password"));
     sym_response_header_handler = ID2SYM(rb_intern("response_header_handler"));
     sym_response_body_handler = ID2SYM(rb_intern("response_body_handler"));
+
+#ifdef HAVE_RUBY_ENCODING_H
+    utf8Encoding = rb_utf8_encoding();
+#endif
 }
