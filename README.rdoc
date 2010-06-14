@@ -3,6 +3,7 @@
 == Features
 * rest-client like API
 * Streaming API allows the caller to be handed chunks of the response while it's being received
+* uses Encoding.default_internal (otherwise falls back to utf-8) for strings it hands back in 1.9
 
 == How to install
 
