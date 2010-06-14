@@ -1,13 +1,13 @@
 // static size_t upload_data_handler(char * stream, size_t size, size_t nmemb, VALUE upload_stream) {
 //     size_t result = 0;
-//     
+//
 //     // TODO
 //     // Change upload_stream back to a VALUE
 //     // if TYPE(upload_stream) == T_STRING - read at most "len" continuously
 //     // if upload_stream is IO-like, read chunks of it
 //     // OR
 //     // if upload_stream responds to "each", use that?
-//     
+//
 //     TRAP_BEG;
 //     // if (upload_stream != NULL && *upload_stream != NULL) {
 //     //     int len = size * nmemb;
@@ -85,7 +85,7 @@ static VALUE each_http_header(VALUE header, VALUE self) {
     struct curl_instance * instance;
     GetInstance(self, instance);
     VALUE header_str = rb_str_new2("");
-    
+
     rb_str_buf_cat(header_str, RSTRING_PTR(rb_ary_entry(header, 0)), RSTRING_LEN(rb_ary_entry(header, 0)));
     rb_str_buf_cat(header_str, ": ", 2);
     rb_str_buf_cat(header_str, RSTRING_PTR(rb_ary_entry(header, 1)), RSTRING_LEN(rb_ary_entry(header, 1)));
@@ -99,7 +99,7 @@ static VALUE each_http_header(VALUE header, VALUE self) {
 // slightly modified for Streamly
 static VALUE select_error(CURLcode code) {
     VALUE error = Qnil;
-    
+
     switch (code) {
         case CURLE_UNSUPPORTED_PROTOCOL:
             error = eUnsupportedProtocol;
@@ -178,7 +178,7 @@ VALUE rb_streamly_init(int argc, VALUE * argv, VALUE self) {
     struct curl_instance * instance;
     char * credential_sep = ":";
     VALUE args, url, payload, headers, username, password, credentials;
-    
+
     GetInstance(self, instance);
     instance->handle = curl_easy_init();
     instance->request_headers = NULL;
@@ -187,12 +187,12 @@ VALUE rb_streamly_init(int argc, VALUE * argv, VALUE self) {
     instance->response_header_handler = Qnil;
     instance->response_body_handler = Qnil;
     instance->options = Qnil;
-    
+
     rb_scan_args(argc, argv, "10", &args);
-    
+
     // Ensure our args parameter is a hash
     Check_Type(args, T_HASH);
-    
+
     instance->request_method = rb_hash_aref(args, sym_method);
     url = rb_hash_aref(args, sym_url);
     payload = rb_hash_aref(args, sym_payload);
@@ -201,7 +201,7 @@ VALUE rb_streamly_init(int argc, VALUE * argv, VALUE self) {
     password = rb_hash_aref(args, sym_password);
     instance->response_header_handler = rb_hash_aref(args, sym_response_header_handler);
     instance->response_body_handler = rb_hash_aref(args, sym_response_body_handler);
-    
+
     // First lets verify we have a :method key
     if (NIL_P(instance->request_method)) {
         rb_raise(eStreamlyError, "You must specify a :method");
@@ -213,12 +213,12 @@ VALUE rb_streamly_init(int argc, VALUE * argv, VALUE self) {
             }
         }
     }
-    
+
     // Now verify a :url was provided
     if (NIL_P(url)) {
         rb_raise(eStreamlyError, "You must specify a :url to request");
     }
-    
+
     if (NIL_P(instance->response_header_handler)) {
         instance->response_header_handler = rb_str_new2("");
 #ifdef HAVE_RUBY_ENCODING_H
@@ -241,15 +241,15 @@ VALUE rb_streamly_init(int argc, VALUE * argv, VALUE self) {
         }
 #endif
     }
-    
+
     if (!NIL_P(headers)) {
         Check_Type(headers, T_HASH);
         rb_iterate(rb_each, headers, each_http_header, self);
         curl_easy_setopt(instance->handle, CURLOPT_HTTPHEADER, instance->request_headers);
     }
-    
+
     // So far so good, lets start setting up our request
-    
+
     // Set the type of request
     if (instance->request_method == sym_head) {
         curl_easy_setopt(instance->handle, CURLOPT_NOBODY, 1);
@@ -259,10 +259,10 @@ VALUE rb_streamly_init(int argc, VALUE * argv, VALUE self) {
         curl_easy_setopt(instance->handle, CURLOPT_POST, 1);
         curl_easy_setopt(instance->handle, CURLOPT_POSTFIELDS, RSTRING_PTR(payload));
         curl_easy_setopt(instance->handle, CURLOPT_POSTFIELDSIZE, RSTRING_LEN(payload));
-        
+
         // (multipart)
         // curl_easy_setopt(instance->handle, CURLOPT_HTTPPOST, 1);
-        
+
         // TODO: get streaming upload working
         // curl_easy_setopt(instance->handle, CURLOPT_READFUNCTION, &upload_data_handler);
         // curl_easy_setopt(instance->handle, CURLOPT_READDATA, &instance->upload_stream);
@@ -271,7 +271,7 @@ VALUE rb_streamly_init(int argc, VALUE * argv, VALUE self) {
         curl_easy_setopt(instance->handle, CURLOPT_CUSTOMREQUEST, "PUT");
         curl_easy_setopt(instance->handle, CURLOPT_POSTFIELDS, RSTRING_PTR(payload));
         curl_easy_setopt(instance->handle, CURLOPT_POSTFIELDSIZE, RSTRING_LEN(payload));
-        
+
         // TODO: get streaming upload working
         // curl_easy_setopt(instance->handle, CURLOPT_UPLOAD, 1);
         // curl_easy_setopt(instance->handle, CURLOPT_READFUNCTION, &upload_data_handler);
@@ -280,16 +280,16 @@ VALUE rb_streamly_init(int argc, VALUE * argv, VALUE self) {
     } else if (instance->request_method == sym_delete) {
         curl_easy_setopt(instance->handle, CURLOPT_CUSTOMREQUEST, "DELETE");
     }
-    
+
     // Other common options
     curl_easy_setopt(instance->handle, CURLOPT_URL, RSTRING_PTR(url));
     curl_easy_setopt(instance->handle, CURLOPT_FOLLOWLOCATION, 1);
     curl_easy_setopt(instance->handle, CURLOPT_MAXREDIRS, 3);
-    
+
     // Response header handling
     curl_easy_setopt(instance->handle, CURLOPT_HEADERFUNCTION, &header_handler);
     curl_easy_setopt(instance->handle, CURLOPT_HEADERDATA, instance->response_header_handler);
-    
+
     // Response body handling
     if (instance->request_method != sym_head) {
         curl_easy_setopt(instance->handle, CURLOPT_ENCODING, "identity, deflate, gzip");
@@ -311,12 +311,12 @@ VALUE rb_streamly_init(int argc, VALUE * argv, VALUE self) {
         curl_easy_setopt(instance->handle, CURLOPT_USERPWD, RSTRING_PTR(credentials));
         rb_gc_mark(credentials);
     }
-    
+
     curl_easy_setopt(instance->handle, CURLOPT_SSL_VERIFYPEER, 0);
     curl_easy_setopt(instance->handle, CURLOPT_SSL_VERIFYHOST, 0);
-    
+
     curl_easy_setopt(instance->handle, CURLOPT_ERRORBUFFER, instance->error_buffer);
-    
+
     return self;
 }
 
@@ -335,7 +335,7 @@ VALUE rb_streamly_execute(int argc, VALUE * argv, VALUE self) {
     if (CURLE_OK != res) {
         rb_raise(select_error(res), instance->error_buffer);
     }
-    
+
     // Cleanup
     if (instance->request_headers != NULL) {
         curl_slist_free_all(instance->request_headers);
@@ -356,12 +356,12 @@ VALUE rb_streamly_execute(int argc, VALUE * argv, VALUE self) {
 // Ruby Extension initializer
 void Init_streamly_ext() {
     mStreamly = rb_define_module("Streamly");
-    
+
     cRequest = rb_define_class_under(mStreamly, "Request", rb_cObject);
     rb_define_singleton_method(cRequest, "new", rb_streamly_new, -1);
     rb_define_method(cRequest, "initialize", rb_streamly_init, -1);
     rb_define_method(cRequest, "execute", rb_streamly_execute, -1);
-    
+
     eStreamlyError = rb_define_class_under(mStreamly, "Error", rb_eStandardError);
     eUnsupportedProtocol = rb_define_class_under(mStreamly, "UnsupportedProtocol", rb_eStandardError);
     eURLFormatError = rb_define_class_under(mStreamly, "URLFormatError", rb_eStandardError);
@@ -370,7 +370,7 @@ void Init_streamly_ext() {
     ePartialFileError = rb_define_class_under(mStreamly, "PartialFileError", rb_eStandardError);
     eTimeoutError = rb_define_class_under(mStreamly, "TimeoutError", rb_eStandardError);
     eTooManyRedirects = rb_define_class_under(mStreamly, "TooManyRedirects", rb_eStandardError);
-    
+
     sym_method = ID2SYM(rb_intern("method"));
     sym_url = ID2SYM(rb_intern("url"));
     sym_payload = ID2SYM(rb_intern("payload"));
