@@ -85,13 +85,16 @@ static VALUE each_http_header(VALUE header, VALUE self) {
     struct curl_instance * instance;
     GetInstance(self, instance);
     VALUE key = rb_ary_entry(header, 0), val = rb_ary_entry(header, 1);
-    unsigned char header_str[RSTRING_LEN(key) + RSTRING_LEN(val) + 3];
+    size_t key_len = RSTRING_LEN(key), val_len = RSTRING_LEN(val), header_str_len = (key_len + val_len + 3);
+    unsigned char header_str[header_str_len];
+    char *key_str = RSTRING_PTR(key), *val_str = RSTRING_PTR(val), *header_sep = ": ";
 
-    memcpy(header_str, RSTRING_PTR(key), RSTRING_LEN(val));
-    memcpy(header_str, ": ", 2);
-    memcpy(header_str, RSTRING_PTR(val), RSTRING_LEN(val));
+    memcpy(header_str, key_str, key_len);
+    memcpy(header_str+2, header_sep, 2);
+    memcpy(header_str+val_len, val_str, val_len);
 
-    instance->request_headers = curl_slist_append(instance->request_headers, RSTRING_PTR(header_str));
+    header_str[header_str_len+1] = '\0';
+    instance->request_headers = curl_slist_append(instance->request_headers, (char *)header_str);
     return Qnil;
 }
 
