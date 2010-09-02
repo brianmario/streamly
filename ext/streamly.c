@@ -27,10 +27,20 @@ static rb_encoding *utf8Encoding;
 #endif
 
 static size_t header_handler(char * stream, size_t size, size_t nmemb, VALUE handler) {
+  size_t str_len = size * nmemb;
+
   if(TYPE(handler) == T_STRING) {
-    rb_str_buf_cat(handler, stream, size * nmemb);
+#ifdef HAVE_RUBY_ENCODING_H
+    rb_encoding *default_internal_enc = rb_default_internal_encoding();
+    if (default_internal_enc) {
+      handler = rb_str_export_to_enc(handler, default_internal_enc);
+    } else {
+      handler = rb_str_export_to_enc(handler, utf8Encoding);
+    }
+#endif
+    rb_str_buf_cat(handler, stream, str_len);
   } else {
-    VALUE chunk = rb_str_new(stream, size * nmemb);
+    VALUE chunk = rb_str_new(stream, str_len);
 #ifdef HAVE_RUBY_ENCODING_H
     rb_encoding *default_internal_enc = rb_default_internal_encoding();
     if (default_internal_enc) {
@@ -41,14 +51,24 @@ static size_t header_handler(char * stream, size_t size, size_t nmemb, VALUE han
 #endif
     rb_funcall(handler, rb_intern("call"), 1, chunk);
   }
-  return size * nmemb;
+  return str_len;
 }
 
 static size_t data_handler(char * stream, size_t size, size_t nmemb, VALUE handler) {
+  size_t str_len = size * nmemb;
+
   if(TYPE(handler) == T_STRING) {
-    rb_str_buf_cat(handler, stream, size * nmemb);
+#ifdef HAVE_RUBY_ENCODING_H
+    rb_encoding *default_internal_enc = rb_default_internal_encoding();
+    if (default_internal_enc) {
+      handler = rb_str_export_to_enc(handler, default_internal_enc);
+    } else {
+      handler = rb_str_export_to_enc(handler, utf8Encoding);
+    }
+#endif
+    rb_str_buf_cat(handler, stream, str_len);
   } else {
-    VALUE chunk = rb_str_new(stream, size * nmemb);
+    VALUE chunk = rb_str_new(stream, str_len);
 #ifdef HAVE_RUBY_ENCODING_H
     rb_encoding *default_internal_enc = rb_default_internal_encoding();
     if (default_internal_enc) {
@@ -59,7 +79,7 @@ static size_t data_handler(char * stream, size_t size, size_t nmemb, VALUE handl
 #endif
     rb_funcall(handler, rb_intern("call"), 1, chunk);
   }
-  return size * nmemb;
+  return str_len;
 }
 
 void streamly_instance_mark(struct curl_instance * instance) {
