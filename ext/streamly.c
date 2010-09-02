@@ -82,7 +82,7 @@ static size_t data_handler(char * stream, size_t size, size_t nmemb, VALUE handl
   return str_len;
 }
 
-void streamly_instance_mark(struct curl_instance * instance) {
+static void streamly_instance_mark(struct curl_instance * instance) {
   rb_gc_mark(instance->request_method);
   rb_gc_mark(instance->request_payload_handler);
   rb_gc_mark(instance->response_header_handler);
@@ -90,7 +90,7 @@ void streamly_instance_mark(struct curl_instance * instance) {
   rb_gc_mark(instance->options);
 }
 
-void streamly_instance_free(struct curl_instance * instance) {
+static void streamly_instance_free(struct curl_instance * instance) {
   curl_easy_cleanup(instance->handle);
   free(instance);
 }
@@ -170,7 +170,7 @@ static VALUE select_error(CURLcode code) {
 *    +:payload+ - If +:method+ is either +:post+ or +:put+ this will be used as the request body
 *
 */
-VALUE rb_streamly_new(int argc, VALUE * argv, VALUE klass) {
+static VALUE rb_streamly_new(int argc, VALUE * argv, VALUE klass) {
   struct curl_instance * instance;
   VALUE obj = Data_Make_Struct(klass, struct curl_instance, streamly_instance_mark, streamly_instance_free, instance);
   rb_obj_call_init(obj, argc, argv);
@@ -193,7 +193,7 @@ VALUE rb_streamly_new(int argc, VALUE * argv, VALUE klass) {
 *    +:payload+ - If +:method+ is either +:post+ or +:put+ this will be used as the request body
 *
 */
-VALUE rb_streamly_init(int argc, VALUE * argv, VALUE self) {
+static VALUE rb_streamly_init(int argc, VALUE * argv, VALUE self) {
   struct curl_instance * instance;
   char * credential_sep = ":";
   VALUE args, url, payload, headers, username, password, credentials;
@@ -338,18 +338,26 @@ VALUE rb_streamly_init(int argc, VALUE * argv, VALUE self) {
   return self;
 }
 
+static CURLcode nogvl_perform(void *handle) {
+  return curl_easy_perform(handle);
+}
+
 /*
 * Document-method: rb_streamly_execute
 *
 * call-seq: rb_streamly_execute
 */
-VALUE rb_streamly_execute(int argc, VALUE * argv, VALUE self) {
+static VALUE rb_streamly_execute(RB_STREAMLY_UNUSED int argc, RB_STREAMLY_UNUSED VALUE * argv, VALUE self) {
   CURLcode res;
   struct curl_instance * instance;
   GetInstance(self, instance);
 
   // Done setting up, lets do this!
+#ifdef HAVE_RB_THREAD_BLOCKING_REGION
+  res = rb_thread_blocking_region(nogvl_perform, instance->handle, RUBY_UBF_IO, 0);
+#else
   res = curl_easy_perform(instance->handle);
+#endif
   if (CURLE_OK != res) {
     rb_raise(select_error(res), instance->error_buffer);
   }

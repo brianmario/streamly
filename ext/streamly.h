@@ -8,16 +8,6 @@ VALUE sym_response_header_handler, sym_response_body_handler, sym_username, sym_
 
 #define GetInstance(obj, sval) (sval = (struct curl_instance*)DATA_PTR(obj));
 
-#ifdef HAVE_RBTRAP
-#include <rubysig.h>
-#else
-void rb_enable_interrupt(void);
-void rb_disable_interrupt(void);
-
-#define TRAP_BEG rb_enable_interrupt();
-#define TRAP_END do { rb_disable_interrupt(); rb_thread_check_ints(); } while(0);
-#endif
-
 struct curl_instance {
   CURL* handle;
   char error_buffer[CURL_ERROR_SIZE];
@@ -36,7 +26,41 @@ static size_t data_handler(char * stream, size_t size, size_t nmemb, VALUE handl
 // 
 static VALUE select_error(CURLcode code);
 static VALUE each_http_header(VALUE header, VALUE header_array);
-void streamly_instance_mark(struct curl_instance * instance);
-void streamly_instance_free(struct curl_instance * instance);
+static void streamly_instance_mark(struct curl_instance * instance);
+static void streamly_instance_free(struct curl_instance * instance);
 
-VALUE rb_streamly_new(int argc, VALUE * argv, VALUE klass);
+static VALUE rb_streamly_new(int argc, VALUE * argv, VALUE klass);
+
+#if defined(__GNUC__) && (__GNUC__ >= 3)
+#define RB_STREAMLY_UNUSED __attribute__ ((unused))
+#else
+#define RB_STREAMLY_UNUSED
+#endif
+
+/*
+ * partial emulation of the 1.9 rb_thread_blocking_region under 1.8,
+ * this is enough for dealing with blocking I/O functions in the
+ * presence of threads.
+ */
+#ifndef HAVE_RB_THREAD_BLOCKING_REGION
+
+#include <rubysig.h>
+#define RUBY_UBF_IO ((rb_unblock_function_t *)-1)
+typedef void rb_unblock_function_t(void *);
+typedef VALUE rb_blocking_function_t(void *);
+static VALUE
+rb_thread_blocking_region(
+  rb_blocking_function_t *func, void *data1,
+  RB_STREAMLY_UNUSED rb_unblock_function_t *ubf,
+  RB_STREAMLY_UNUSED void *data2)
+{
+  VALUE rv;
+
+  TRAP_BEG;
+  rv = func(data1);
+  TRAP_END;
+
+  return rv;
+}
+
+#endif /* ! HAVE_RB_THREAD_BLOCKING_REGION */

@@ -2,6 +2,9 @@
 require 'mkmf'
 require 'rbconfig'
 
+# 1.9-only
+have_func('rb_thread_blocking_region')
+
 $CFLAGS << ' -DHAVE_RBTRAP' if have_var('rb_trap_immediate', ['ruby.h', 'rubysig.h'])
 # add_define 'HAVE_RBTRAP' if have_var('rb_trap_immediate', ['ruby.h', 'rubysig.h'])
 
