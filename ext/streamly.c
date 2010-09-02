@@ -100,14 +100,21 @@ static void streamly_instance_free(struct curl_instance * instance) {
 static VALUE each_http_header(VALUE header, VALUE self) {
   struct curl_instance * instance;
   GetInstance(self, instance);
-  VALUE key = rb_ary_entry(header, 0), val = rb_ary_entry(header, 1);
-  size_t key_len = RSTRING_LEN(key), val_len = RSTRING_LEN(val), header_str_len = (key_len + val_len + 3);
-  unsigned char header_str[header_str_len];
-  char *key_str = RSTRING_PTR(key), *val_str = RSTRING_PTR(val), *header_sep = ": ";
+  size_t key_len, val_len, header_str_len;
+  VALUE key, val;
 
-  memcpy(header_str, key_str, key_len);
-  memcpy(header_str+2, header_sep, 2);
-  memcpy(header_str+val_len, val_str, val_len);
+  key = rb_ary_entry(header, 0);
+  key_len = RSTRING_LEN(key);
+
+  val = rb_ary_entry(header, 1);
+  val_len = RSTRING_LEN(val);
+
+  header_str_len = (key_len + val_len + 3);
+  unsigned char header_str[header_str_len];
+
+  memcpy(header_str, RSTRING_PTR(key), key_len);
+  memcpy(header_str+2, ": ", 2);
+  memcpy(header_str+val_len, RSTRING_PTR(val), val_len);
 
   header_str[header_str_len+1] = '\0';
   instance->request_headers = curl_slist_append(instance->request_headers, (char *)header_str);
@@ -195,7 +202,6 @@ static VALUE rb_streamly_new(int argc, VALUE * argv, VALUE klass) {
 */
 static VALUE rb_streamly_init(int argc, VALUE * argv, VALUE self) {
   struct curl_instance * instance;
-  char * credential_sep = ":";
   VALUE args, url, payload, headers, username, password, credentials;
 
   GetInstance(self, instance);
@@ -321,7 +327,7 @@ static VALUE rb_streamly_init(int argc, VALUE * argv, VALUE self) {
     if (!NIL_P(username)) {
       rb_str_buf_cat(credentials, RSTRING_PTR(username), RSTRING_LEN(username));
     }
-    rb_str_buf_cat(credentials, credential_sep, 1);
+    rb_str_buf_cat(credentials, ":", 1);
     if (!NIL_P(password)) {
       rb_str_buf_cat(credentials, RSTRING_PTR(password), RSTRING_LEN(password));
     }
@@ -338,8 +344,16 @@ static VALUE rb_streamly_init(int argc, VALUE * argv, VALUE self) {
   return self;
 }
 
-static CURLcode nogvl_perform(void *handle) {
-  return curl_easy_perform(handle);
+static VALUE nogvl_perform(void *handle) {
+  CURLcode res;
+  VALUE status = Qnil;
+
+  res = curl_easy_perform(handle);
+  if (CURLE_OK != res) {
+    status = select_error(res);
+  }
+
+  return status;
 }
 
 /*
@@ -348,18 +362,14 @@ static CURLcode nogvl_perform(void *handle) {
 * call-seq: rb_streamly_execute
 */
 static VALUE rb_streamly_execute(RB_STREAMLY_UNUSED int argc, RB_STREAMLY_UNUSED VALUE * argv, VALUE self) {
-  CURLcode res;
+  VALUE status;
   struct curl_instance * instance;
   GetInstance(self, instance);
 
   // Done setting up, lets do this!
-#ifdef HAVE_RB_THREAD_BLOCKING_REGION
-  res = rb_thread_blocking_region(nogvl_perform, instance->handle, RUBY_UBF_IO, 0);
-#else
-  res = curl_easy_perform(instance->handle);
-#endif
-  if (CURLE_OK != res) {
-    rb_raise(select_error(res), instance->error_buffer);
+  status = rb_thread_blocking_region(nogvl_perform, instance->handle, RUBY_UBF_IO, 0);
+  if (!NIL_P(status)) {
+    rb_raise(status, "%s", instance->error_buffer);
   }
 
   // Cleanup
