@@ -15,73 +15,73 @@ Nothing special about it, just:
 
 === A basic HEAD request
 
- Streamly.head('www.somehost.com')
+ Streamly.head 'www.somehost.com'
 
 Or streaming
 
- Streamly.head('www.somehost.com') do |header_chunk|
+ Streamly.head 'www.somehost.com' do |header_chunk|
    # do something with header_chunk
  end
 
 You can also pass a Hash of headers
 
- Streamly.head('www.somehost.com', {"User-Agent" => "Your Mom"})
+ Streamly.head 'www.somehost.com', {"User-Agent" => "Your Mom"}
 
 === A basic GET request
 
- Streamly.get('www.somehost.com')
+ Streamly.get 'www.somehost.com'
 
 Or streaming
 
- Streamly.get('www.somehost.com') do |body_chunk|
+ Streamly.get 'www.somehost.com' do |body_chunk|
    # do something with body_chunk
  end
 
 You can also pass a Hash of headers
 
- Streamly.get('www.somehost.com', {"User-Agent" => "Your Mom"})
+ Streamly.get 'www.somehost.com', {"User-Agent" => "Your Mom"}
 
 === A basic POST request
 
- Streamly.post('www.somehost.com', 'blah=foo')
+ Streamly.post 'www.somehost.com', 'blah=foo'
 
 Or streaming
 
- Streamly.post('www.somehost.com', 'blah=foo') do |body_chunk|
+ Streamly.post 'www.somehost.com', 'blah=foo' do |body_chunk|
    # do something with body_chunk
  end
 
 You can also pass a Hash of headers
 
- Streamly.post('www.somehost.com', 'blah=foo', {"User-Agent" => "Your Mom"})
+ Streamly.post 'www.somehost.com', 'blah=foo', {"User-Agent" => "Your Mom"}
 
 === A basic PUT request
 
- Streamly.put('www.somehost.com', 'blah=foo')
+ Streamly.put 'www.somehost.com', 'blah=foo'
 
 Or streaming
 
- Streamly.put('www.somehost.com', 'blah=foo') do |body_chunk|
+ Streamly.put 'www.somehost.com', 'blah=foo' do |body_chunk|
    # do something with body_chunk
  end
 
 You can also pass a Hash of headers
 
- Streamly.put('www.somehost.com', 'blah=foo', {"User-Agent" => "Your Mom"})
+ Streamly.put 'www.somehost.com', 'blah=foo', {"User-Agent" => "Your Mom"}
 
 === A basic DELETE request
 
- Streamly.delete('www.somehost.com')
+ Streamly.delete 'www.somehost.com'
 
 Or streaming
 
- Streamly.delete('www.somehost.com') do |body_chunk|
+ Streamly.delete 'www.somehost.com' do |body_chunk|
    # do something with body_chunk
  end
 
 You can also pass a Hash of headers
 
- Streamly.delete('www.somehost.com', {"User-Agent" => "Your Mom"})
+ Streamly.delete 'www.somehost.com', {"User-Agent" => "Your Mom"}
 
 == Benchmarks
 
