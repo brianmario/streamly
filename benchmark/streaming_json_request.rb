@@ -10,13 +10,15 @@ require 'yajl'
 require 'benchmark'
 
 url = ARGV[0]
+TIMES = (ARGV[1] || 1).to_i
+
+rest_client_opts = {"Accept-Encoding" => "identity, deflate, gzip"}
 
 Benchmark.bmbm do |x|
   parser = Yajl::Parser.new
   parser.on_parse_complete = lambda {|obj| }
-  x.report do
-    puts "Streamly"
-    (ARGV[1] || 1).to_i.times do
+  x.report "Streamly" do
+    TIMES.times do
       Streamly.get(url) do |chunk|
         parser << chunk
       end
@@ -25,19 +27,17 @@ Benchmark.bmbm do |x|
 
   parser = Yajl::Parser.new
   parser.on_parse_complete = lambda {|obj| }
-  x.report do
-    puts "Shell out to curl"
-    (ARGV[1] || 1).to_i.times do
+  x.report "Shell out to curl" do
+    TIMES.times do
       parser.parse `curl -s --compressed #{url}`
     end
   end
 
   parser = Yajl::Parser.new
   parser.on_parse_complete = lambda {|obj| }
-  x.report do
-    puts "rest-client"
-    (ARGV[1] || 1).to_i.times do
-      parser.parse RestClient.get(url, {"Accept-Encoding" => "identity, deflate, gzip"})
+  x.report "rest-client" do
+    TIMES.times do
+      parser.parse RestClient.get(url, rest_client_opts)
     end
   end
 end

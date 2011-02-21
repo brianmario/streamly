@@ -9,26 +9,26 @@ require 'streamly'
 require 'benchmark'
 
 url = ARGV[0]
+TIMES = (ARGV[1] || 1).to_i
+
+rest_client_opts = {"Accept-Encoding" => "identity, deflate, gzip"}
 
 Benchmark.bmbm do |x|
-  x.report do
-    puts "Streamly"
-    (ARGV[1] || 1).to_i.times do
+  x.report "Streamly" do
+    TIMES.times do
       Streamly.get(url)
     end
   end
 
-  x.report do
-    puts "Shell out to curl"
-    (ARGV[1] || 1).to_i.times do
+  x.report "Shell out to curl" do
+    TIMES.times do
       `curl -s --compressed #{url}`
     end
   end
 
-  x.report do
-    puts "rest-client"
-    (ARGV[1] || 1).to_i.times do
-      RestClient.get(url, {"Accept-Encoding" => "identity, deflate, gzip"})
+  x.report "rest-client" do
+    TIMES.times do
+      RestClient.get(url, rest_client_opts)
     end
   end
 end
