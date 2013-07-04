@@ -25,6 +25,7 @@ Or streaming
 Streamly.head 'www.somehost.com' do |header_chunk|
   # do something with header_chunk
 end
+```
 
 You can also pass a Hash of headers
 
